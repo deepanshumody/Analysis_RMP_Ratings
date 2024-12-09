@@ -80,7 +80,7 @@ def visualize_95_ci(df, column, str1):
     ci_lower = mean - 1.96 * (std / np.sqrt(n))
     ci_upper = mean + 1.96 * (std / np.sqrt(n))
 
-    print(f'95% Confidence Interval for Female Professors: [{ci_lower}, {ci_upper}]')
+    print(f'95% Confidence Interval for {str1} Professors: [{ci_lower}, {ci_upper}]')
 
     # Plot the 95% confidence interval
     plt.figure(figsize=(10, 6))
