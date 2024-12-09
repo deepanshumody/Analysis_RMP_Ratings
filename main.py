@@ -138,10 +138,61 @@ def visualize_95_ci_effect_size(df1, df2, column, str1, str2):
     plt.legend()
     plt.show()
 
+def create_p_vals_df(df1, column):
+    # For each of the tags, calculate the p-value of the gender bias using Mann-Whitney U test and the KS test and store the results in a dataframe
+    # Initialize an empty list to store the results
+    results = []
+
+    # Iterate over each tag column
+    for tag in df1.columns[5:]:
+        male_values = df1[df1['HighConfMale'] == 1][tag].dropna()
+        female_values = df1[df1['HighConfFemale'] == 1][tag].dropna()
+        
+        # Perform Mann-Whitney U test
+        u_stat, p_value_u = stats.mannwhitneyu(male_values, female_values, alternative='two-sided')
+        
+        # Perform KS test
+        ks_stat, p_value_ks = stats.ks_2samp(male_values, female_values)
+        
+        # Append the results to the list
+        results.append({'Tag': tag, 'Mann-Whitney U p-value': p_value_u, 'KS test p-value': p_value_ks})
+
+    # Convert the results list to a DataFrame
+    p_values_df = pd.DataFrame(results)
+
+    return p_values_df
+
+def visualize_p_vals(p_vals_df, str1):
+    # Plot the p-values of the Mann-Whitney U test and KS test for each tag
+    fig, ax = plt.subplots(figsize=(10, 6))
+    plt.title(f'P-values of Mann-Whitney U Test vs. KS Test for Each Tag for {str1}')
+    sns.scatterplot(data=p_vals_df, x='Mann-Whitney U p-value', y='KS test p-value', ax=ax)
+    for i, row in p_vals_df.iterrows():
+        ax.text(row['Mann-Whitney U p-value'], row['KS test p-value'], row['Tag'], fontsize=7, rotation=60)
+    ax.set_title('P-values of Mann-Whitney U Test vs. KS Test for Each Tag')
+    ax.set_xlabel('Mann-Whitney U p-value')
+    ax.set_ylabel('KS test p-value')
+    plt.show()
+
+def print_pvals(p_vals_df):
+    significant_results = p_vals_df[(p_vals_df['Mann-Whitney U p-value'] < 0.005) & (p_vals_df['KS test p-value'] < 0.005)]
+
+    # Get the 3 tags with the lowest p-values
+    significant_results_smallest = significant_results.nsmallest(3, 'KS test p-value')
+
+    # Additionally get the 3 tags with the lowest p-values and the 3 tags with the highest p-values
+    significant_results_biggest = p_vals_df.nlargest(3, 'Mann-Whitney U p-value')
+
+    print(significant_results_smallest)
+    print(significant_results_biggest)
+
+
+
 
 
 
 def main():
+    print("Question 1")
     df_capstone = pd.read_csv('./rmpCapstoneNum.csv', header=0)
     df_capstone.columns = ['AverageProfessorRating', 'Average Difficulty', 'NumberOfRatings', 'Received a pepper', 
                        'Proportion of students that said they would take the class again', 
@@ -205,6 +256,7 @@ def main():
     visualize_95_ci(df_capstone_19_plus_no_pepper_male, 'AverageProfessorRating', '19_plus_no_pepper_male')
     visualize_95_ci(df_capstone_19_plus_no_pepper_female, 'AverageProfessorRating', '19_plus_no_pepper_female')
     print("------------------------------------")
+    print("Question 3")
     print("Lets check the effect sizes: Cohen's D")
     print("------------------------------------")
     print("For 19_plus_no_pepper")
@@ -214,6 +266,37 @@ def main():
     print('For professors with 10 or more ratings')
     effect_size(df_capstone_greater_than_10_men, df_capstone_greater_than_10_female, 'AverageProfessorRating')
     visualize_95_ci_effect_size(df_capstone_greater_than_10_men, df_capstone_greater_than_10_female, 'AverageProfessorRating', 'df_capstone_greater_than_10_male', 'df_capstone_greater_than_10_female')
+    print("------------------------------------")
+    print("Question 4")
+    df_capstone_tags = pd.read_csv('./rmpCapstoneTags.csv', header=None)
+    df_capstone_tags.columns = ['Tough grader', 'Good feedback', 'Respected', 'Lots to read', 'Participation matters', 
+                                'Don’t skip class or you will not pass', 'Lots of homework', 'Inspirational', 'Pop quizzes!', 
+                                'Accessible', 'So many papers', 'Clear grading', 'Hilarious', 'Test heavy', 'Graded by few things', 
+                                'Amazing lectures', 'Caring', 'Extra credit', 'Group projects', 'Lecture heavy']
+    # Merge the two dataframes
+    df_merged = pd.concat([df_capstone[['AverageProfessorRating', 'NumberOfRatings', 'Received a pepper', 'HighConfMale', 'HighConfFemale']], df_capstone_tags], axis=1)
+    df_merged.head()
+
+    df_merged_min_10 =  df_merged[(df_merged['NumberOfRatings'] >= 10) & ~((df_merged['HighConfMale'] == 1) & (df_merged['HighConfFemale'] == 1)) & ~((df_merged['HighConfMale'] == 0) & (df_merged['HighConfFemale'] == 0))]
+    df_merged_min_10.iloc[:, 5:] = df_merged_min_10.iloc[:, 5:].apply(pd.to_numeric, errors='coerce').astype(float)
+
+    print("For professors with more than 10 ratings")
+    print("------------------------------------")
+    # Replace tag values by normalizing them with the total number of tags awarded to that professor
+    df_merged_min_10.iloc[:, 5:] = df_merged_min_10.iloc[:, 5:].div(df_merged_min_10.iloc[:, 3:].sum(axis=1), axis=0)
+
+    p_vals_min_10 = create_p_vals_df(df_merged_min_10, 'AverageProfessorRating')
+    visualize_p_vals(p_vals_min_10, 'For professors with more than 10 ratings')
+    print_pvals(p_vals_min_10)
+    print("------------------------------------")
+    print("For professors with more than 19 ratings and no pepper rating")
+    df_merged_min_19_no_pepper = df_merged_min_10[(df_merged_min_10['Received a pepper'] == 0) & (df_merged_min_10['NumberOfRatings'] >= 19)]
+    p_vals_min_19_no_pepper = create_p_vals_df(df_merged_min_19_no_pepper, 'AverageProfessorRating')
+    visualize_p_vals(p_vals_min_19_no_pepper, 'For professors with more than 19 ratings and no pepper rating')
+    print_pvals(p_vals_min_19_no_pepper)
+    print("------------------------------------")
+
+    
 
 
 if __name__ == '__main__':
