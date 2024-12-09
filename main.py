@@ -283,7 +283,7 @@ def main():
     print("For professors with more than 10 ratings")
     print("------------------------------------")
     # Replace tag values by normalizing them with the total number of tags awarded to that professor
-    df_merged_min_10.iloc[:, 5:] = df_merged_min_10.iloc[:, 5:].div(df_merged_min_10.iloc[:, 3:].sum(axis=1), axis=0)
+    df_merged_min_10.iloc[:, 5:] = df_merged_min_10.iloc[:, 5:].div(df_merged_min_10.iloc[:, 5:].sum(axis=1), axis=0)
 
     p_vals_min_10 = create_p_vals_df(df_merged_min_10, 'AverageProfessorRating')
     visualize_p_vals(p_vals_min_10, 'For professors with more than 10 ratings')
