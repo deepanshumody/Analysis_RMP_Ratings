@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
+import warnings
 
 # Seed value for random number generators to obtain reproducible results
 RANDOM_SEED = 10676128
@@ -11,14 +12,14 @@ RANDOM_SEED = 10676128
 # Apply the random seed to numpy.
 np.random.seed(RANDOM_SEED)
 
-def visualize_density_plot(df1, df2, column, str1, str2, df3 = None, str3 = None):
+def visualize_density_plot(df1, df2, column, str1, str2, df3 = None, str3 = None, nbins = 30):
     # Plot the histogram of the AverageProfessorRating for professors with more than 10 ratings for women and men separately
     plt.figure(figsize=(10, 6))
 
-    sns.histplot(df1[column], bins=30, kde=True, color='blue', label=f'{column} for {str1}', stat='density')
-    sns.histplot(df2[column], bins=30, kde=True, color='red', label=f'{column} for {str2}', stat='density')
+    sns.histplot(df1[column], bins=nbins, kde=True, color='blue', label=f'{column} for {str1}', stat='density')
+    sns.histplot(df2[column], bins=nbins, kde=True, color='red', label=f'{column} for {str2}', stat='density')
     if(df3 is not None):
-        sns.histplot(df3[column], bins=30, kde=True, color='green', label=f'{column} for {str3}', stat='density')
+        sns.histplot(df3[column], bins=nbins, kde=True, color='green', label=f'{column} for {str3}', stat='density')
     if(df3 is not None):
         plt.title(f'Normalized Histogram of {str1}, {str2} and {str3} for {column}', fontsize=10)
     else:
@@ -26,7 +27,7 @@ def visualize_density_plot(df1, df2, column, str1, str2, df3 = None, str3 = None
     plt.xlabel(f'{column}') 
     plt.ylabel('Density')
     plt.legend()
-    #plt.show()
+    plt.show()
 
 
 def perform_ks_mw_test(df1, df2, column, str1, str2):
@@ -138,7 +139,7 @@ def visualize_95_ci_effect_size(df1, df2, column, str1, str2):
     plt.legend()
     plt.show()
 
-def create_p_vals_df(df1, column):
+def create_p_vals_df(df1):
     # For each of the tags, calculate the p-value of the gender bias using Mann-Whitney U test and the KS test and store the results in a dataframe
     # Initialize an empty list to store the results
     results = []
@@ -175,14 +176,15 @@ def visualize_p_vals(p_vals_df, str1):
     plt.show()
 
 def print_pvals(p_vals_df):
-    significant_results = p_vals_df[(p_vals_df['Mann-Whitney U p-value'] < 0.005) & (p_vals_df['KS test p-value'] < 0.005)]
 
+    significant_results = p_vals_df[(p_vals_df['Mann-Whitney U p-value'] < 0.05) | (p_vals_df['KS test p-value'] < 0.05)]
     # Get the 3 tags with the lowest p-values
-    significant_results_smallest = significant_results.nsmallest(3, 'KS test p-value')
+    significant_results_smallest = p_vals_df.nsmallest(3, 'Mann-Whitney U p-value')
 
     # Additionally get the 3 tags with the lowest p-values and the 3 tags with the highest p-values
     significant_results_biggest = p_vals_df.nlargest(3, 'Mann-Whitney U p-value')
 
+    print(significant_results)
     print(significant_results_smallest)
     print(significant_results_biggest)
 
@@ -278,22 +280,26 @@ def main():
     df_merged.head()
 
     df_merged_min_10 =  df_merged[(df_merged['NumberOfRatings'] >= 10) & ~((df_merged['HighConfMale'] == 1) & (df_merged['HighConfFemale'] == 1)) & ~((df_merged['HighConfMale'] == 0) & (df_merged['HighConfFemale'] == 0))]
-    df_merged_min_10.iloc[:, 5:] = df_merged_min_10.iloc[:, 5:].apply(pd.to_numeric, errors='coerce').astype(float)
+    
+    warnings.filterwarnings("ignore", category=FutureWarning)
+    df_merged_min_10.iloc[:, 5:] = df_merged_min_10.iloc[:, 5:].astype(float)
 
     print("For professors with more than 10 ratings")
     print("------------------------------------")
     # Replace tag values by normalizing them with the total number of tags awarded to that professor
     df_merged_min_10.iloc[:, 5:] = df_merged_min_10.iloc[:, 5:].div(df_merged_min_10.iloc[:, 5:].sum(axis=1), axis=0)
 
-    p_vals_min_10 = create_p_vals_df(df_merged_min_10, 'AverageProfessorRating')
+    p_vals_min_10 = create_p_vals_df(df_merged_min_10)
     visualize_p_vals(p_vals_min_10, 'For professors with more than 10 ratings')
     print_pvals(p_vals_min_10)
     print("------------------------------------")
     print("For professors with more than 19 ratings and no pepper rating")
     df_merged_min_19_no_pepper = df_merged_min_10[(df_merged_min_10['Received a pepper'] == 0) & (df_merged_min_10['NumberOfRatings'] >= 19)]
-    p_vals_min_19_no_pepper = create_p_vals_df(df_merged_min_19_no_pepper, 'AverageProfessorRating')
+    p_vals_min_19_no_pepper = create_p_vals_df(df_merged_min_19_no_pepper)
     visualize_p_vals(p_vals_min_19_no_pepper, 'For professors with more than 19 ratings and no pepper rating')
     print_pvals(p_vals_min_19_no_pepper)
+    visualize_density_plot(df_merged_min_19_no_pepper[df_merged_min_19_no_pepper['HighConfMale'] == 1], df_merged_min_19_no_pepper[df_merged_min_19_no_pepper['HighConfFemale'] == 1], 'Pop quizzes!', 'HighConfMale', 'HighConfFemale', nbins = 3)
+    print("Median: df_merged_min_19_no_pepper male", df_merged_min_19_no_pepper[df_merged_min_19_no_pepper['HighConfMale'] == 1]['Pop quizzes!'].describe(), "Median: df_merged_min_19_no_pepper female", df_merged_min_19_no_pepper[df_merged_min_19_no_pepper['HighConfFemale'] == 1]['Pop quizzes!'].describe())
     print("------------------------------------")
 
     
