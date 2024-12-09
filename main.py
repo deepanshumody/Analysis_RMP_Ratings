@@ -5,12 +5,19 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
 import warnings
+from scipy.stats import levene
+from math import sqrt
+from scipy.stats import t
+from scipy.stats import chi2_contingency
 
 # Seed value for random number generators to obtain reproducible results
 RANDOM_SEED = 10676128
 
 # Apply the random seed to numpy.
 np.random.seed(RANDOM_SEED)
+
+pd.options.mode.chained_assignment = None  # default='warn'
+
 
 def visualize_density_plot(df1, df2, column, str1, str2, df3 = None, str3 = None, nbins = 30):
     # Plot the histogram of the AverageProfessorRating for professors with more than 10 ratings for women and men separately
@@ -67,9 +74,14 @@ def perform_kw_test(df1, df2, df3, column, str1, str2, str3, df4 = None, str4 = 
     
 
 def perform_corr_test(df1, column1, column2, str1):
-    print(f'Biserial Pearson Test of {str1} for the two groups: {column1} and {column2}')
+    print(f'Biserial Pearson Test of correlation {str1} for the two groups: {column1} and {column2}')
     corr = stats.pointbiserialr(df1[column1], df1[column2])
     print('Biserial Pearson Correlation ', corr)
+
+def perform_corr_cont_test(df1, column1, column2, str1):
+    print(f'Pearson Test of correlation {str1} for the two groups: {column1} and {column2}')
+    corr = df1[column1].corr(df1[column2])
+    print('Pearson Correlation ', corr)
 
 def visualize_95_ci(df, column, str1):
     # Calculate the 95% confidence interval for the sample means of male and female professors with more than 19 ratings and no pepper rating
@@ -188,12 +200,434 @@ def print_pvals(p_vals_df):
     print(significant_results_smallest)
     print(significant_results_biggest)
 
+def lavenes_test(df1, df2, column):
+    # Extract Average Ratings for Male and Female Professors
+    ratings_male = df1[column]
+    ratings_female = df2[column]
+
+    # Perform Levene's Test
+    stat, p_value = levene(ratings_male, ratings_female)
+
+    # Display the results
+    print(f"Levene's Test Statistic: {stat:.4f}")
+    print(f"P-value: {p_value:.4f}")
+
+    # Interpretation
+    if p_value < 0.005:  # Using significance level of 0.005
+        print("The variances are significantly different (reject the null hypothesis).")
+    else:
+        print("The variances are not significantly different (fail to reject the null hypothesis).")
 
 
+def lavenes_test_group(group_distributions):
+    stat, p_value = levene(*group_distributions)  # Unpack the list of distributions
+    print(f"Levene's Test Statistic: {stat:.4f}, P-value: {p_value:.4f}")
 
+    # Interpretation
+    if p_value < 0.005:
+        print("The variances are significantly different (reject the null hypothesis).")
+    else:
+        print("The variances are not significantly different (fail to reject the null hypothesis).")
+
+# Function to calculate pooled standard deviation
+def pooled_std(group1, group2):
+    n1, n2 = len(group1), len(group2)
+    return sqrt(((n1 - 1) * np.var(group1, ddof=1) + (n2 - 1) * np.var(group2, ddof=1)) / (n1 + n2 - 2))
+
+# Function to calculate confidence interval for Cohen's d
+def cohen_d_confidence_interval(group1, group2, column, alpha=0.005):
+    group1 = group1[column]
+    group2 = group2[column]
+    n1, n2 = len(group1), len(group2)
+    d = (np.mean(group1) - np.mean(group2)) / pooled_std(group1, group2)
+    se_d = sqrt((n1 + n2) / (n1 * n2) + (d**2 / (2 * (n1 + n2))))
+    dof = n1 + n2 - 2
+    t_crit = t.ppf(1 - alpha / 2, dof)
+    margin_of_error = t_crit * se_d
+    lower = d - margin_of_error
+    upper = d + margin_of_error
+    print(f"Cohen's d (Effect Size): {d:.3f}")
+    print(f"95% Confidence Interval for Cohen's d: ({lower:.3f}, {upper:.3f})") 
+    return d, lower, upper
+
+def create_num_ratings_group(df):
+    # Step 1: Create Two Groups (Half and Half) for Number of Ratings
+    warnings.filterwarnings("ignore", category=FutureWarning)
+    df.loc[:, 'Ratings Group'] = pd.qcut(
+        df['NumberOfRatings'], 
+        q=2,  # Divide into 2 groups
+        labels=['Lower Half', 'Upper Half']
+    )
+
+    # Step 2: Extract Distributions of Average Rating for Each Group
+    group_distributions = [
+        df[df['Ratings Group'] == group]['AverageProfessorRating']
+        for group in df['Ratings Group'].unique()
+    ]
+
+    return group_distributions
+
+def create_avg_difficulty_group(df):
+    median_difficulty = df['Average Difficulty'].median()
+
+    df['Difficulty Groups'] = pd.cut(
+    df['Average Difficulty'],
+    bins=[df['Average Difficulty'].min(), median_difficulty, df['Average Difficulty'].max()],
+    labels=[f'Below Median (≤{median_difficulty:.2f})', f'Above Median (> {median_difficulty:.2f})'],
+    include_lowest=True
+    )
+
+    groups = df['Difficulty Groups'].unique()
+    return groups
+
+def group_avg_difficulty_lavenes_test(groups, df):
+    # Step 3: Perform Levene's Test for each pair of groups
+    print("Pairwise Levene's Test Results:")
+
+    # Compare groups using nested loops
+    for i in range(len(groups)):
+        for j in range(i + 1, len(groups)):
+            group1 = groups[i]
+            group2 = groups[j]
+
+            # Extract data for the two groups
+            group1_data = df[df['Difficulty Groups'] == group1]['AverageProfessorRating']
+            group2_data = df[df['Difficulty Groups'] == group2]['AverageProfessorRating']
+            
+            # Ensure both groups have enough data points
+            if len(group1_data) > 1 and len(group2_data) > 1:
+                stat, p_value = levene(group1_data, group2_data)
+                print(f"Comparing {group1} vs {group2}: Levene's Test Statistic = {stat:.4f}, P-value = {p_value:.4f}")
+                
+                # Interpretation
+                if p_value < 0.005:
+                    print("  The variances are significantly different (reject the null hypothesis).")
+                else:
+                    print("  The variances are not significantly different (fail to reject the null hypothesis).")
+            else:
+                print(f"Not enough data to compare {group1} vs {group2}.")
+            print("-" * 50)
+
+
+def lavenes_controlled_for_groups(df):
+
+    # Assuming df is loaded with the necessary data
+
+    # Calculate median splits for Average Difficulty and Number of ratings
+    median_difficulty = df['Average Difficulty'].median()
+    median_ratings = df['NumberOfRatings'].median()
+
+    # Create stratification groups based on the conditions
+    df.loc[:, 'Difficulty Groups'] = pd.cut(
+        df['Average Difficulty'],
+        bins=[df['Average Difficulty'].min(), median_difficulty, df['Average Difficulty'].max()],
+        labels=[f'Below Median (≤{median_difficulty:.2f})', f'Above Median (> {median_difficulty:.2f})'],
+        include_lowest=True
+    )
+
+    df.loc[:, 'Ratings Groups'] = pd.cut(
+        df['NumberOfRatings'],
+        bins=[df['NumberOfRatings'].min(), median_ratings, df['NumberOfRatings'].max()],
+        labels=[f'Below Median (≤{median_ratings:.2f})', f'Above Median (> {median_ratings:.2f})'],
+        include_lowest=True
+    )
+
+    # Create a combined stratification group
+    df.loc[:, 'Stratification Group'] = (
+        df['Difficulty Groups'].astype(str) + "_" +
+        df['Ratings Groups'].astype(str) + "_" +
+        df['Received a pepper'].astype(str)
+    )
+
+    # Initialize a list to store Levene's test results and effect sizes
+    levene_results = []
+
+    # Get unique stratification groups
+    stratification_groups = df['Stratification Group'].unique()
+
+    # Iterate through each stratification group
+    for group in stratification_groups:
+        # Filter data for males and females in the current group
+        male_data = df[(df['HighConfMale'] == 1) & (df['Stratification Group'] == group)]['AverageProfessorRating']
+        female_data = df[(df['HighConfFemale'] == 1) & (df['Stratification Group'] == group)]['AverageProfessorRating']
+        
+        # Calculate sample sizes for the subgroup
+        male_sample_size = len(male_data)
+        female_sample_size = len(female_data)
+        total_sample_size = male_sample_size + female_sample_size
+        
+        # Ensure both groups have enough data for Levene's test
+        if male_sample_size > 1 and female_sample_size > 1:
+            stat, p_value = levene(male_data, female_data)
+            
+            # Calculate Cohen's d for the group
+            mean_male = male_data.mean()
+            mean_female = female_data.mean()
+            std_male = male_data.std()
+            std_female = female_data.std()
+            pooled_std = np.sqrt(((male_sample_size - 1) * std_male**2 + (female_sample_size - 1) * std_female**2) / (male_sample_size + female_sample_size - 2))
+            effect_size = (mean_male - mean_female) / pooled_std
+            
+            levene_results.append({
+                'Stratification Group': group,
+                'Levene Stat': stat,
+                'P-value': p_value,
+                'Significant': p_value < 0.005,  # Using a significance level of 0.005
+                'Male Sample Size': male_sample_size,
+                'Female Sample Size': female_sample_size,
+                'Total Sample Size': total_sample_size,
+                'Cohen\'s d': effect_size
+            })
+        else:
+            levene_results.append({
+                'Stratification Group': group,
+                'Levene Stat': None,
+                'P-value': None,
+                'Significant': "Insufficient Data",
+                'Male Sample Size': male_sample_size,
+                'Female Sample Size': female_sample_size,
+                'Total Sample Size': total_sample_size,
+                'Cohen\'s d': None
+            })
+
+    # Convert results to a DataFrame
+    levene_results_df = pd.DataFrame(levene_results)
+
+    # Print the results
+    print("Levene's Test Results with Cohen's d for Male vs. Female within Subgroups:")
+    print(levene_results_df)
+
+        # Bootstrap to calculate the 95% confidence interval for Cohen's d
+    bootstrap_effect_sizes = []
+    n_bootstrap = 1000
+
+    if not male_data.empty and not female_data.empty:
+        for _ in range(n_bootstrap):
+            # Resample data with replacement
+            male_sample = np.random.choice(male_data, size=len(male_data), replace=True)
+            female_sample = np.random.choice(female_data, size=len(female_data), replace=True)
+
+            # Calculate means and standard deviations for resampled data
+            mean_male_sample = np.mean(male_sample)
+            mean_female_sample = np.mean(female_sample)
+            std_male_sample = np.std(male_sample, ddof=1)
+            std_female_sample = np.std(female_sample, ddof=1)
+
+            # Calculate pooled standard deviation
+            pooled_std_sample = np.sqrt(
+                ((len(male_sample) - 1) * std_male_sample**2 + (len(female_sample) - 1) * std_female_sample**2) /
+                (len(male_sample) + len(female_sample) - 2)
+            )
+
+            # Calculate Cohen's d for the resampled data
+            bootstrap_effect_sizes.append((mean_male_sample - mean_female_sample) / pooled_std_sample)
+
+        # Calculate the confidence interval
+        lower_bound = np.percentile(bootstrap_effect_sizes, 2.5)
+        upper_bound = np.percentile(bootstrap_effect_sizes, 97.5)
+
+        # Print the results
+        print(f"95% Confidence Interval for Cohen's d: [{lower_bound:.4f}, {upper_bound:.4f}]")
+    else:
+        print("No data available for the specified group to perform bootstrap analysis.")
+
+
+def avg_diff_male_female(df):
+
+    # Function to calculate the effect size (rank-biserial correlation)
+    def rank_biserial_effect_size(u_stat, group1, group2):
+        n1, n2 = len(group1), len(group2)
+        return (2 * u_stat) / (n1 * n2) - 1
+
+    # Function to calculate bootstrap confidence intervals for the effect size
+    def bootstrap_effect_size_ci(group1, group2, num_bootstrap=1000, alpha=0.05):
+        bootstrapped_effect_sizes = []
+        for _ in range(num_bootstrap):
+            group1_sample = np.random.choice(group1, size=len(group1), replace=True)
+            group2_sample = np.random.choice(group2, size=len(group2), replace=True)
+            u_stat_sample, _ = stats.mannwhitneyu(group1_sample, group2_sample, alternative='two-sided')
+            effect_size_sample = rank_biserial_effect_size(u_stat_sample, group1_sample, group2_sample)
+            bootstrapped_effect_sizes.append(effect_size_sample)
+        lower = np.percentile(bootstrapped_effect_sizes, 100 * (alpha / 2))
+        upper = np.percentile(bootstrapped_effect_sizes, 100 * (1 - alpha / 2))
+        return lower, upper
+
+    # Filter for male and female professor difficulty ratings
+    male_difficulty = df[df['HighConfMale'] == 1]['Average Difficulty'].to_numpy()
+    female_difficulty = df[df['HighConfFemale'] == 1]['Average Difficulty'].to_numpy()
+
+    # Mann-Whitney U Test
+    u_stat, p_value_mw = stats.mannwhitneyu(male_difficulty, female_difficulty, alternative='two-sided')
+
+    # Kolmogorov-Smirnov Test
+    ks_stat, p_value_ks = stats.ks_2samp(male_difficulty, female_difficulty)
+
+    # Calculate effect size for Mann-Whitney U
+    effect_size_mw = rank_biserial_effect_size(u_stat, male_difficulty, female_difficulty)
+
+    # Bootstrap confidence interval for effect size
+    ci_lower, ci_upper = bootstrap_effect_size_ci(male_difficulty, female_difficulty)
+
+    # Display results
+    print("Mann-Whitney U Test:")
+    print(f"  U-Statistic: {u_stat:.3f}")
+    print(f"  P-Value: {p_value_mw:.3f}")
+    print(f"  Effect Size (Rank-Biserial Correlation): {effect_size_mw:.3f}")
+    print(f"  95% Bootstrap CI for Effect Size: ({ci_lower:.3f}, {ci_upper:.3f})")
+    if p_value_mw < 0.005:
+        print("  The distributions of average difficulty ratings significantly differ between male and female professors.")
+    else:
+        print("  The distributions of average difficulty ratings do not significantly differ between male and female professors.")
+
+    print("\nKolmogorov-Smirnov Test:")
+    print(f"  KS-Statistic: {ks_stat:.3f}")
+    print(f"  P-Value: {p_value_ks:.3f}")
+    if p_value_ks < 0.005:
+        print("  The distributions of average difficulty ratings significantly differ between male and female professors.")
+    else:
+        print("  The distributions of average difficulty ratings do not significantly differ between male and female professors.")
+
+def avg_diff_signif_test(df):
+    from scipy.stats import ks_2samp
+
+    # Step 1: Calculate the median of 'Number of ratings'
+    median_ratings = df['NumberOfRatings'].median()
+
+    # Step 2: Split 'Average Difficulty' into two groups based on the median of 'Number of ratings'
+    below_median_difficulty = df[df['NumberOfRatings'] <= median_ratings]['Average Difficulty']
+    above_median_difficulty = df[df['NumberOfRatings'] > median_ratings]['Average Difficulty']
+
+    # Step 3: Perform KS test to compare distributions
+    ks_stat, p_value = ks_2samp(below_median_difficulty, above_median_difficulty)
+
+    # Display results
+    print(f"Kolmogorov-Smirnov Statistic: {ks_stat:.3f}")
+    print(f"P-value: {p_value:.3f}")
+
+    # Interpretation
+    if p_value < 0.005:  # Assuming a significance level of 0.005
+        print("The distribution of Average Difficulty significantly changes based on the Number of ratings.")
+    else:
+        print("The distribution of Average Difficulty does not significantly change based on the Number of ratings.")
+
+
+def avg_rating_conf(df):
+    from scipy.stats import ks_2samp
+
+    # Step 1: Calculate the median of 'Number of ratings'
+    median_ratings = df['AverageProfessorRating'].median()
+
+    # Step 2: Split 'Average Difficulty' into two groups based on the median of 'Number of ratings'
+    below_median_difficulty = df[df['AverageProfessorRating'] <= median_ratings]['Average Difficulty']
+    above_median_difficulty = df[df['AverageProfessorRating'] > median_ratings]['Average Difficulty']
+
+    # Step 3: Perform KS test to compare distributions
+    ks_stat, p_value = ks_2samp(below_median_difficulty, above_median_difficulty)
+
+    # Display results
+    print(f"Kolmogorov-Smirnov Statistic: {ks_stat:.3f}")
+    print(f"P-value: {p_value:.3f}")
+
+    # Interpretation
+    if p_value < 0.005:  # Assuming a significance level of 0.005
+        print("The distribution of Average Difficulty significantly changes based on Average ratings.")
+    else:
+        print("The distribution of Average Difficulty does not significantly change based on Average ratings.")
+
+
+def mannwhitney_ks_test(df, column1, column2):
+
+    # Filter for Average Difficulty based on 'Received a pepper'
+    pepper_group = df[df[column1] == 1][column2]
+    no_pepper_group = df[df[column1] == 0][column2]
+
+    # Mann-Whitney U Test
+    u_stat, p_value_mw = stats.mannwhitneyu(pepper_group, no_pepper_group, alternative='two-sided')
+
+    # Kolmogorov-Smirnov Test
+    ks_stat, p_value_ks = stats.ks_2samp(pepper_group, no_pepper_group)
+
+    # Display results
+    print("Mann-Whitney U Test:")
+    print(f"  U-Statistic: {u_stat:.3f}")
+    print(f"  P-Value: {p_value_mw:.3f}")
+
+    print("\nKolmogorov-Smirnov Test:")
+    print(f"  KS-Statistic: {ks_stat:.3f}")
+    print(f"  P-Value: {p_value_ks:.3f}")
+
+def CHI2(df, column1, column2):
+    # Create a contingency table
+    contingency_table = pd.crosstab(df[column1], df[column2])
+
+    # Perform the chi-square test
+    chi2, p_value, dof, expected = chi2_contingency(contingency_table)
+
+    # Display the results
+    print("Contingency Table:")
+    print(contingency_table)
+    print(f"\nChi-Square Statistic: {chi2:.3f}")
+    print(f"P-value: {p_value:.3f}")
+    print(f"Degrees of Freedom: {dof}")
+    print("------------------------------------")
+    print("------------------------------------")
+
+def CHI2_MW(df, column1, column2, column3):
+    # Iterate over conditions and perform tests
+    print("Mann-Whitney U Test and Kolmogorov-Smirnov Test Results:")
+    for pepper_status in [0, 1]:  # 0 = No Pepper, 1 = Pepper
+        # Filter male and female groups for the current pepper status
+        males = df[(df[column1] == 1) &
+                    (df[column2] == pepper_status)][column3]
+        
+        females = df[(df[column1] == 0) &
+                        (df[column2] == pepper_status)][column3]
+        
+        # Check if both groups have enough data
+        if len(males) > 1 and len(females) > 1:
+            # Mann-Whitney U Test
+            u_stat, p_value_mw = stats.mannwhitneyu(males, females, alternative='two-sided')
+            
+            # Kolmogorov-Smirnov Test
+            ks_stat, p_value_ks = stats.ks_2samp(males, females)
+
+            # Print results for this subgroup
+            print(f"Group: Pepper = {'Yes' if pepper_status == 1 else 'No'}")
+            print(f"  Mann-Whitney U Test Statistic: {u_stat:.3f}")
+            print(f"  Mann-Whitney P-Value: {p_value_mw:.3f}")
+            print(f"  {'Significant' if p_value_mw < 0.005 else 'Not Significant'}")
+            print(f"  Kolmogorov-Smirnov Statistic: {ks_stat:.3f}")
+            print(f"  Kolmogorov-Smirnov P-Value: {p_value_ks:.3f}")
+            print(f"  {'Significant' if p_value_ks < 0.005 else 'Not Significant'}")
+        else:
+            # Print message if there is insufficient data
+            print(f"Group: Pepper = {'Yes' if pepper_status == 1 else 'No'}")
+            print("  Not enough data for Mann-Whitney U Test and Kolmogorov-Smirnov Test")
+
+    # Function to calculate Cohen's d
+def cohen_d(group1, group2):
+    n1, n2 = len(group1), len(group2)
+    pooled_std = sqrt(((n1 - 1) * np.var(group1, ddof=1) + (n2 - 1) * np.var(group2, ddof=1)) / (n1 + n2 - 2))
+    return (np.mean(group1) - np.mean(group2)) / pooled_std
+
+# Function to calculate bootstrap confidence intervals for Cohen's d
+def bootstrap_cohen_d_ci(group1, group2, num_bootstrap=1000, alpha=0.005):
+    bootstrapped_d = []
+    for _ in range(num_bootstrap):
+        # Resample with replacement
+        group1_sample = np.random.choice(group1, size=len(group1), replace=True)
+        group2_sample = np.random.choice(group2, size=len(group2), replace=True)
+        # Calculate Cohen's d for resampled groups
+        bootstrapped_d.append(cohen_d(group1_sample, group2_sample))
+    # Calculate the confidence intervals
+    lower = np.percentile(bootstrapped_d, 100 * (alpha / 2))
+    upper = np.percentile(bootstrapped_d, 100 * (1 - alpha / 2))
+    return lower, upper
 
 
 def main():
+    warnings.filterwarnings("ignore", category=FutureWarning)
+
     print("Question 1")
     df_capstone = pd.read_csv('./rmpCapstoneNum.csv', header=0)
     df_capstone.columns = ['AverageProfessorRating', 'Average Difficulty', 'NumberOfRatings', 'Received a pepper', 
@@ -258,6 +692,46 @@ def main():
     visualize_95_ci(df_capstone_19_plus_no_pepper_male, 'AverageProfessorRating', '19_plus_no_pepper_male')
     visualize_95_ci(df_capstone_19_plus_no_pepper_female, 'AverageProfessorRating', '19_plus_no_pepper_female')
     print("------------------------------------")
+    print("------------------------------------")
+
+    print("Question 2")
+    
+    print("------------------------------------")
+    print("Lavenes test Hypothesis Test: greater than 10 men vs greater than 10 female")
+    lavenes_test(df_capstone_greater_than_10_men, df_capstone_greater_than_10_female, 'AverageProfessorRating')
+    print("------------------------------------")
+    print("95% CI for Lavenes test on Cohens d: greater than 10 men vs greater than 10 female")
+    cohen_d_confidence_interval(df_capstone_greater_than_10_men, df_capstone_greater_than_10_female, "AverageProfessorRating")
+    print("------------------------------------")
+    print("Lavenes Test for number of ratings: Split by median")
+    grouped_dist = create_num_ratings_group(df_capstone_greater_than_10)
+    lavenes_test_group(grouped_dist)
+    print("------------------------------------")
+    perform_corr_cont_test(df_capstone_greater_than_10, 'Average Difficulty', 'AverageProfessorRating', 'df_capstone_greater_than_10')
+    print("------------------------------------")
+
+    print("Lavenes test for Average Difficulty and Average Ratings: Split by median")
+    groups_avg_diff = create_avg_difficulty_group(df_capstone_greater_than_10)
+    group_avg_difficulty_lavenes_test(groups_avg_diff, df_capstone_greater_than_10)
+
+    print("------------------------------------")
+
+    print("Correlation Avg Difficulty and Average Ratings")
+
+    perform_corr_cont_test(df_capstone_greater_than_10, 'Average Difficulty', 'AverageProfessorRating', 'df_capstone_greater_than_10')
+
+    print("------------------------------------")
+    print("Lavenes test for Received a pepper and Average Professor Rating")
+    lavenes_test(df_capstone_greater_than_10[df_capstone_greater_than_10['Received a pepper'] == 1], df_capstone_greater_than_10[df_capstone_greater_than_10['Received a pepper'] == 0], 'AverageProfessorRating')
+    print("------------------------------------")
+    print("Lavenes test after adjusting for confounds")
+
+    lavenes_controlled_for_groups(df_capstone_greater_than_10)
+
+    print("------------------------------------")
+
+    print("------------------------------------")
+
     print("Question 3")
     print("Lets check the effect sizes: Cohen's D")
     print("------------------------------------")
@@ -281,7 +755,6 @@ def main():
 
     df_merged_min_10 =  df_merged[(df_merged['NumberOfRatings'] >= 10) & ~((df_merged['HighConfMale'] == 1) & (df_merged['HighConfFemale'] == 1)) & ~((df_merged['HighConfMale'] == 0) & (df_merged['HighConfFemale'] == 0))]
     
-    warnings.filterwarnings("ignore", category=FutureWarning)
     df_merged_min_10.iloc[:, 5:] = df_merged_min_10.iloc[:, 5:].astype(float)
 
     print("For professors with more than 10 ratings")
@@ -301,8 +774,77 @@ def main():
     visualize_density_plot(df_merged_min_19_no_pepper[df_merged_min_19_no_pepper['HighConfMale'] == 1], df_merged_min_19_no_pepper[df_merged_min_19_no_pepper['HighConfFemale'] == 1], 'Pop quizzes!', 'HighConfMale', 'HighConfFemale', nbins = 3)
     print("Median: df_merged_min_19_no_pepper male", df_merged_min_19_no_pepper[df_merged_min_19_no_pepper['HighConfMale'] == 1]['Pop quizzes!'].describe(), "Median: df_merged_min_19_no_pepper female", df_merged_min_19_no_pepper[df_merged_min_19_no_pepper['HighConfFemale'] == 1]['Pop quizzes!'].describe())
     print("------------------------------------")
+    print("------------------------------------")
 
+    print("Question 5")
+    print("------------------------------------")
+    print("Average Difficulty: Male and Females 10 or more ratings")
+    avg_diff_male_female(df_capstone_greater_than_10)
+    print("------------------------------------")
+    print("Average Difficulty and Number of Ratings Correlation")
+    # Calculate the Pearson correlation between Average Rating and Average Difficulty
+    correlation = df_capstone_greater_than_10[['NumberOfRatings', 'Average Difficulty']].corr().iloc[0, 1]
+
+    # Display the result
+    print(f"The correlation between Number of rating and Average Difficulty is: {correlation:.3f}")
+
+    print("------------------------------------")
+
+    avg_diff_signif_test(df_capstone_greater_than_10)
+    print("------------------------------------")
+
+    avg_rating_conf(df_capstone_greater_than_10)
+
+    print("------------------------------------")
+
+    # Compute the Pearson correlation between 'Received a Pepper' and 'Average Difficulty'
+    correlation = df_capstone_greater_than_10[['Received a pepper', 'Average Difficulty']].corr().iloc[0, 1]
+
+    # Display the result
+    print(f"The correlation between 'Received a Pepper' and 'Average Difficulty' is: {correlation:.3f}")
+    print("------------------------------------")
+
+    print("Mann Whitney Test for Received a Pepper and Average Difficulty")
+    mannwhitney_ks_test(df_capstone_greater_than_10, 'Received a pepper', 'Average Difficulty')
+    print("------------------------------------")
+
+    print("Chi Squared Test for Pepper and Gender")    
+    CHI2(df_capstone_greater_than_10, 'HighConfMale', 'Received a pepper')
+    print("------------------------------------")
+
+    print("Chi Squared and Mann Whitney Test: Controlling for confounds")   
+    print("------------------------------------")
+
+    CHI2_MW(df_capstone_greater_than_10, 'HighConfMale', 'Received a pepper', 'Average Difficulty')
+    print("------------------------------------")
+
+    # Iterate over conditions and calculate Cohen's d with CI
+    print("Cohen's d and Bootstrap Confidence Interval Results:")
+    for pepper_status in [0, 1]:  # 0 = No Pepper, 1 = Pepper
+        # Filter male and female groups for the current pepper status
+        males = df_capstone_greater_than_10[(df_capstone_greater_than_10['HighConfMale'] == 1) &
+                       (df_capstone_greater_than_10['Received a pepper'] == pepper_status)]['Average Difficulty'].to_numpy()
     
+        females = df_capstone_greater_than_10[(df_capstone_greater_than_10['HighConfMale'] == 0) &
+                     (df_capstone_greater_than_10['Received a pepper'] == pepper_status)]['Average Difficulty'].to_numpy()
+    
+        # Check if both groups have enough data
+        if len(males) > 1 and len(females) > 1:
+            # Calculate Cohen's d
+            d = cohen_d(males, females)
+        
+            # Calculate bootstrap confidence interval for Cohen's d
+            ci_lower_d, ci_upper_d = bootstrap_cohen_d_ci(males, females)
+        
+            # Print results for this subgroup
+            print(f"Group: Pepper = {'Yes' if pepper_status == 1 else 'No'}")
+            print(f"  Cohen's d (Effect Size): {d:.3f}")
+            print(f"  95% Bootstrap CI for Cohen's d: ({ci_lower_d:.3f}, {ci_upper_d:.3f})")
+        else:
+            # Print message if there is insufficient data
+            print(f"Group: Pepper = {'Yes' if pepper_status == 1 else 'No'}")
+            print("  Not enough data to calculate Cohen's d and its confidence interval.")
+    print("------------------------------------")
 
 
 if __name__ == '__main__':
