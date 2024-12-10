@@ -15,6 +15,13 @@ from math import sqrt
 from scipy.stats import t
 from scipy.stats import chi2_contingency
 import datetime
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (
+    confusion_matrix,
+    roc_curve,
+    auc,
+    classification_report)
+from sklearn.preprocessing import MinMaxScaler
 
 # Seed value for random number generators to obtain reproducible results
 RANDOM_SEED = 10676128
@@ -1731,6 +1738,272 @@ def main():
     results=getfinalresults(X_train,y_train,X_test,y_test)
     results_df = pd.DataFrame(results, columns=['Model', 'Alpha', 'RMSE', 'R2'])
     plot_results(results_df)
+    
+
+    print("Question 10")
+
+    Q10df=df_capstone_greater_than_10_all.join(tagsdf, how='inner')
+
+    Q10df.dropna(inplace=True)
+
+    for i in Q10df.columns[8:]:
+        Q10df[i] = Q10df[i].div(Q10df['Number of ratings'])
+
+    Q10df=Q10df[(Q10df['Male Professor']==1) & (Q10df['Female Professor']==0) | (Q10df['Male Professor']==0) & (Q10df['Female Professor']==1)]
+
+    correlation_matrix = Q10df.corr()
+    plt.figure(figsize = (40,40))
+    sns.heatmap(correlation_matrix,cmap = "RdBu_r", annot=True)
+    plt.title('Correlation Matrix')
+    plt.show()    
+    averagerating = Q10df['Average Rating']
+    receivedapepper = Q10df['Received a pepper']
+    fig, ax = plt.subplots(figsize=(10,6)) # Could also do figure and plt.() later on, but subplots are a generalization
+
+    ax.scatter(x=averagerating, y=receivedapepper, c='purple') # Purple for NYU :)
+    ax.set_title("Scatterplot of Average Rating V Received a pepper")
+    ax.set_xlabel("Average Rating (X)")
+    ax.set_ylabel("Received a pepper (Y)")
+
+    plt.tight_layout()
+    plt.show()
+
+    # We definitely shouldn't draw a line through this lol
+    # Logistic Regression with one independent variable
+    X = Q10df[['Average Rating']] # Double bracket for shaping (not a worry for multiple logistic regression)
+    y = Q10df['Received a pepper']
+
+    # Train-test split from scikit learn
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=RANDOM_SEED
+    )
+
+    print(X_train) # see training data
+
+    print(y_train) # see target
+
+    # Fit logistic regression
+    log_reg_single = LogisticRegression()
+    log_reg_single.fit(X_train, y_train)
+
+    # Predictions
+    # Class
+    y_pred = log_reg_single.predict(X_test)
+
+    # Probabilities
+    y_prob = log_reg_single.predict_proba(X_test)[:, 1]
+
+    # Threshold?
+    # Get predictions in dataframe
+    results = pd.DataFrame({'Predictions': y_pred, 'Probabilities': y_prob})
+    print(results.tail())  # Display a few rows
+
+    print(results[results['Predictions'] == 1].min())
+    print(results[results['Predictions'] == 0].max())
+
+    THRESHOLD = 0.607 # Revisit later!
+    # THRESHOLD = optimal_threshold # from ROC curve
+    y_pred_new = (y_prob > THRESHOLD).astype(int)
+
+    # Calculate evaluation metrics
+    # Precision = TP / TP + FP
+    # Recall = TP / TP + FN
+    # F1 = 2 * P * R / (P + R) - harmonic mean, balance precision and recall
+    # Support - data pts in the class
+    # Macro metrics - average over each class
+    # Micro or weighted metrics - treat each sample the same
+
+    class_report = classification_report(y_test, y_pred_new) #y_pred_new
+    print(class_report)
+
+    # Interpret coefficients
+    print(log_reg_single.coef_)
+    # Interpret: For every increase in 1 unit of Average Rating, we expect the odds of Received a pepper relative to odds of no Received a pepper (the ratio) to increase by e^0.03
+    print(np.exp(log_reg_single.coef_[0])) # Slight boost for odds of Received a pepper
+
+    print(log_reg_single.intercept_)
+    print(np.exp(log_reg_single.intercept_)) # Not super interpretable, Average Rating wouldn't be 0. But "base" odds here.
+    # If Average Rating was 0, p / 1 -p or Received a pepper v no Received a pepper would be small odds
+
+    # Confusion Matrix
+    conf_matrix_single = confusion_matrix(y_test, y_pred) #y_pred_new
+    sns.heatmap(conf_matrix_single, annot=True, fmt="d", cmap="Blues",
+                xticklabels=["0 (Did not)", "1 (Received a pepper)"],
+                yticklabels=["0 (Did not)", "1 (Received a pepper)"])
+
+    # Add title and labels
+    plt.title("Confusion Matrix")
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.show()
+    # What do you think doc?
+
+    # Visualize the curve
+    # Extract coefficients
+    beta1 = log_reg_single.coef_[0][0]
+    intercept = log_reg_single.intercept_[0]
+
+    # Apply over training data
+    x_vals = np.linspace(X_train.min(), X_train.max(), 100)
+
+    # Logistic reg formula
+    y_vals = 1 / (1 + np.exp(-(beta1 * x_vals + intercept)))
+    plt.plot(x_vals, y_vals, label="Sigmoid Curve")
+
+    # Add threshold line
+    threshold = THRESHOLD
+    threshold_x = (np.log(threshold / (1 - threshold)) - intercept) / beta1  # Solve for x when sigmoid(x) = threshold
+    plt.axvline(threshold_x, color='red', linestyle='--', label=f'Threshold at Average Rating = {threshold_x:.2f}')
+    plt.title("Visualizing the Curve")
+    plt.xlabel("Average Rating")
+    plt.ylabel("Probability of Received a pepper")
+    plt.legend()
+    plt.show()
+
+    # ROC Curve, get AUC
+    fpr, tpr, thresholds = roc_curve(y_test, y_prob)
+    roc_auc = auc(fpr, tpr)
+    plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
+    plt.plot([0, 1], [0, 1], linestyle='--', color='gray')
+    plt.title("ROC Curve")
+    plt.xlabel("False Positive Rate (1 - Specificity)")
+    plt.ylabel("True Positive Rate (Sensitivity)")
+    plt.legend()
+    plt.show()
+
+    # Try to find optimal threshold for fitting
+    optimal_threshold_index = np.argmax(tpr - fpr)
+    optimal_threshold = thresholds[optimal_threshold_index]
+    print(optimal_threshold)
+
+    # List of chosen thresholds
+    chosen_thresholds = [0.607]
+
+    # Plot ROC Curve
+    plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
+
+    # Loop over each threshold
+    for chosen_threshold in chosen_thresholds:
+        # Find index of the threshold closest to the chosen one
+        threshold_index = (np.abs(thresholds - chosen_threshold)).argmin()
+
+        # Get the corresponding FPR and TPR for the chosen threshold
+        fpr_at_threshold = fpr[threshold_index]
+        tpr_at_threshold = tpr[threshold_index]
+
+        # Plot the chosen threshold point on the ROC curve
+        plt.scatter(fpr_at_threshold, tpr_at_threshold, label=f"Threshold = {chosen_threshold}", zorder=5)
+
+    # Add title, labels, and legend
+    plt.title("ROC Curve")
+    plt.xlabel("False Positive Rate (1 - Specificity)")
+    plt.ylabel("True Positive Rate (Sensitivity)")
+    plt.legend()
+
+    # Show plot
+    plt.show()
+
+    
+    X = Q10df.drop(columns=['Received a pepper','Number of ratings','Number of ratings coming from online classes','Male Professor','Female Professor',4,8,9,17,18])  # assuming all columns except 'Average Rating' are features
+    X.columns =X.columns.astype(str)
+    # Multiple
+    # Apply min-max scaling to get variables on same scale
+    scaler = MinMaxScaler()
+    X = scaler.fit_transform(X) # Row-wise
+    print(X)
+    print(X.shape)
+
+    # Logistic Regression with One Explanatory Variable
+    y = Q10df['Received a pepper']
+
+    # Train-test split
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=RANDOM_SEED
+    )
+
+    print(X_train)
+    print(y_train)
+
+    # Fit logistic regression
+    log_reg = LogisticRegression()
+    log_reg.fit(X_train, y_train)
+
+    # Predictions
+    y_pred = log_reg.predict(X_test)
+    y_prob = log_reg.predict_proba(X_test)[:, 1]
+
+    # Efficiently create and display the DataFrame
+    results = pd.DataFrame({'Predictions': y_pred, 'Probabilities': y_prob})
+    print(results.tail())  # Display a few rows
+
+    print(results[results['Predictions'] == 1].min())
+    print(results[results['Predictions'] == 0].max())
+
+    THRESHOLD = 0.465 # Revisit later!
+    # THRESHOLD = optimal_threshold
+    y_pred_new = (y_prob > THRESHOLD).astype(int)
+
+    class_report = classification_report(y_test, y_pred_new) #y_pred_new
+    print(class_report)
+
+    print(log_reg.coef_)
+    print(np.exp(log_reg.coef_)) # These are huge. But careful, we scaled our X variables (between 0 and 1). Still interpretable over fractional units.
+
+    print(log_reg.intercept_)
+    print(np.exp(log_reg.intercept_))
+
+    # Confusion Matrix
+    conf_matrix = confusion_matrix(y_test, y_pred) #y_pred_new
+    sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues",
+                xticklabels=["0 (No Pepper)", "1 (Pepper)"],
+                yticklabels=["0 (No Pepper)", "1 (Pepper)"])
+
+    plt.title("Confusion Matrix")
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.show()
+
+    fpr, tpr, thresholds = roc_curve(y_test, y_prob)
+    roc_auc = auc(fpr, tpr)
+    plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
+    plt.plot([0, 1], [0, 1], linestyle='--', color='gray')
+    plt.title("ROC Curve")
+    plt.xlabel("False Positive Rate (1 - Specificity)")
+    plt.ylabel("True Positive Rate (Sensitivity)")
+    plt.legend()
+    plt.show()
+
+    optimal_threshold_index = np.argmax(tpr - fpr)
+    optimal_threshold = thresholds[optimal_threshold_index]
+    print(optimal_threshold)
+
+    # List of chosen thresholds
+    chosen_thresholds = [0.488]
+
+    # Plot ROC Curve
+    plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
+
+    # Loop over each threshold
+    for chosen_threshold in chosen_thresholds:
+        # Find index of the threshold closest to the chosen one
+        threshold_index = (np.abs(thresholds - chosen_threshold)).argmin()
+
+        # Get the corresponding FPR and TPR for the chosen threshold
+        fpr_at_threshold = fpr[threshold_index]
+        tpr_at_threshold = tpr[threshold_index]
+
+        # Plot the chosen threshold point on the ROC curve
+        plt.scatter(fpr_at_threshold, tpr_at_threshold, label=f"Threshold = {chosen_threshold}", zorder=5)
+
+    # Add title, labels, and legend
+    plt.title("ROC Curve")
+    plt.xlabel("False Positive Rate (1 - Specificity)")
+    plt.ylabel("True Positive Rate (Sensitivity)")
+    plt.legend()
+
+    # Show plot
+    plt.show()
+
             
 if __name__ == '__main__':
     main()
