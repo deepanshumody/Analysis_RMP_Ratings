@@ -698,8 +698,10 @@ def getfinalresults(X_train,y_train,X_test,y_test,alphas=np.array([0.00001,0.000
 
     plt.grid(True)
     plt.tight_layout()
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
     plt.savefig(f"plot_{timestamp}.png")
+    plt.close()
+
 
     ## Pretty even spread in the residuals (homoscedasticity? - check)
     fig, ax = plt.subplots(figsize=(10,6))
@@ -741,9 +743,9 @@ def getfinalresults(X_train,y_train,X_test,y_test,alphas=np.array([0.00001,0.000
 
         plt.grid(True)
         plt.tight_layout()
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        plt.savefig(f"plot_{timestamp}.png")
-
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
+        #(f"plot_{timestamp}.png")
+        #plt.close()
         ## Pretty even spread in the residuals (homoscedasticity? - check)
         fig, ax = plt.subplots(figsize=(10,6))
 
@@ -859,8 +861,9 @@ def plot_results(results_df,alphas=np.array([0.00001,0.0001,0.001,0.01,0.1,1,2,5
     plt.ylabel('RMSE')
     plt.legend()
     plt.grid(True)
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
     plt.savefig(f"plot_{timestamp}.png")
+    plt.close()
 
     plt.figure(figsize=(10, 6))
     plt.xscale("log")
@@ -875,8 +878,9 @@ def plot_results(results_df,alphas=np.array([0.00001,0.0001,0.001,0.01,0.1,1,2,5
     plt.ylabel('R2')
     plt.legend()
     plt.grid(True)
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
     plt.savefig(f"plot_{timestamp}.png")
+    plt.close()
 def plot_betas(betas,feature_names=0,mytype='Normal',alpha=10):
     # Plot the coefficients (betas) for all models
     plt.figure(figsize=(24, 6))
@@ -895,8 +899,9 @@ def plot_betas(betas,feature_names=0,mytype='Normal',alpha=10):
     plt.ylabel('Coefficient Value')
 
     plt.tight_layout()
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
     plt.savefig(f"plot_{timestamp}.png")
+    plt.close()
 def scatterdepandindependent(df,dependent_var):
     for var in df.columns:
         plt.figure(figsize=(8, 5))
@@ -905,8 +910,9 @@ def scatterdepandindependent(df,dependent_var):
         plt.xlabel(var)
         plt.ylabel(dependent_var)
         plt.grid(True)
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
         plt.savefig(f"plot_{timestamp}.png")
+        plt.close()
 def plot_forward_selection_results(results_df):
     plt.figure(figsize=(12, 6))
 
@@ -927,8 +933,9 @@ def plot_forward_selection_results(results_df):
     plt.grid(True)
 
     plt.tight_layout()
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
     plt.savefig(f"plot_{timestamp}.png")
+    plt.close()
 def forward_feature_selection_kfold(X, y, k=5, max_features=None):
     """
     Perform forward feature selection using k-fold cross-validation.
@@ -1233,12 +1240,14 @@ def main():
     print(df_only_na['AverageProfessorRating'].mean(),df_only_na['AverageProfessorRating'].median(),df_only_na['AverageProfessorRating'].std())
     sns.boxplot(df_only_na['AverageProfessorRating'])
     plt.title('Distribution of AverageProfessorRating if Proportion column is missing')
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
     plt.savefig(f"plot_{timestamp}.png")
+    plt.close()
     sns.boxplot(df_capstone_na_dropped['AverageProfessorRating'])
     plt.title('Distribution of AverageProfessorRating if Proportion column is present')
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
     plt.savefig(f"plot_{timestamp}.png")
+    plt.close()
     plt.figure(figsize=(10, 6))
     sns.histplot(df_capstone_na_dropped['AverageProfessorRating'], bins=30, kde=True, color='blue', label='AverageProfessorRating if prop not missing', stat='density')
     sns.histplot(df_only_na['AverageProfessorRating'], bins=30, kde=True, color='red', label='AverageProfessorRating if prop missing', stat='density')
@@ -1246,16 +1255,18 @@ def main():
     plt.xlabel('AverageProfessorRating')
     plt.ylabel('Density')
     plt.legend()
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
     plt.savefig(f"plot_{timestamp}.png")
+    plt.close()
     df_capstone_na_dropped['Proportion of online class ratings'] = df_capstone_na_dropped['Number of ratings coming from online classes'].div(df_capstone_na_dropped['NumberOfRatings'])
     
     correlation_matrix = df_capstone_na_dropped.corr()
 
     sns.heatmap(correlation_matrix,cmap = "RdBu_r", annot=True)
     plt.title('Correlation Matrix')
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
     plt.savefig(f"plot_{timestamp}.png")
+    plt.close()
     df_capstone_dropped_final=df_capstone_na_dropped
     df_capstone_dropped_final=df_capstone_dropped_final[(df_capstone_dropped_final['HighConfMale']==1) & (df_capstone_dropped_final['HighConfFemale']==0) | (df_capstone_dropped_final['HighConfMale']==0) & (df_capstone_dropped_final['HighConfFemale']==1)]
     dependent_var='AverageProfessorRating'
@@ -1285,8 +1296,8 @@ def main():
     plot_results(results_df,alphas=np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 2, 5, 10, 20, 100, 1000,2000, 100000]))
     mybetas=getbetas(X_train,y_train,X_test,y_test)[0]
     indices = np.argsort(mybetas)[::-1]
-    print(indices)  
-    print(getbetas(X_train,y_train,X_test,y_test))
+      
+    #print(getbetas(X_train,y_train,X_test,y_test))
     plot_betas(getbetas(X_train,y_train,X_test,y_test)[0][1:],[i.name for i in [
         df_capstone_dropped_final['Average Difficulty'],
         df_capstone_dropped_final['NumberOfRatings'],
@@ -1312,8 +1323,8 @@ def main():
     plot_results(results_df)
     mybetas=getbetas(X_train,y_train,X_test,y_test)[0] 
     indices = np.argsort(mybetas)[::-1] 
-    print(indices)  
-    print(getbetas(X_train,y_train,X_test,y_test))
+      
+    #print(getbetas(X_train,y_train,X_test,y_test))
     plot_betas(getbetas(X_train,y_train,X_test,y_test)[0][1:],[i.name for i in [
         df_capstone_dropped_final['Proportion of students that said they would take the class again'],
         df_capstone_dropped_final['Average Difficulty'],
@@ -1339,8 +1350,8 @@ def main():
 
     mybetas=getbetas(X_train,y_train,X_test,y_test)[0] 
     indices = np.argsort(mybetas)[::-1] 
-    print(indices)  
-    print(getbetas(X_train,y_train,X_test,y_test))
+      
+    #print(getbetas(X_train,y_train,X_test,y_test))
     plot_betas(getbetas(X_train,y_train,X_test,y_test)[0][1:])
     results=getfinalresults(X_train,y_train,X_test,y_test)
     results_df = pd.DataFrame(results, columns=['Model', 'Alpha', 'RMSE', 'R2'])
@@ -1358,8 +1369,9 @@ def main():
     plt.figure(figsize = (40,40))
     sns.heatmap(correlation_matrix,cmap = "RdBu_r", annot=True)
     plt.title('Correlation Matrix')
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
     plt.savefig(f"plot_{timestamp}.png")
+    plt.close()
     dependent_var='AverageProfessorRating'
     scatterdepandindependent(Q8dfgreater10,dependent_var)
     X = Q8dfgreater10.drop(columns=['AverageProfessorRating','NumberOfRatings'])  # assuming all columns except 'AverageProfessorRating' are features
@@ -1429,8 +1441,8 @@ def main():
     plot_results(results_df)
     mybetas=getbetas(X_train,y_train,X_test,y_test)[0] 
     indices = np.argsort(mybetas)[::-1] 
-    print(indices)  
-    print(getbetas(X_train,y_train,X_test,y_test))
+      
+    #print(getbetas(X_train,y_train,X_test,y_test))
     plot_betas(getbetas(X_train,y_train,X_test,y_test)[0][1:],[i.name for i in [
         Q8dfgreater10[0],
         Q8dfgreater10[1],
@@ -1487,7 +1499,7 @@ def main():
     results_df2 = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2'])
     results_df = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2']).drop(columns='Betas')
     plot_results(results_df)
-    print(getbetas(X_train,y_train,X_test,y_test))
+    #print(getbetas(X_train,y_train,X_test,y_test))
     X = np.array([
     Q8dfgreater10[0],
     Q8dfgreater10[1],
@@ -1507,8 +1519,8 @@ def main():
 
     mybetas=getbetas(X_train,y_train,X_test,y_test)[0]
     indices = np.argsort(mybetas)[::-1]
-    print(indices)
-    print(getbetas(X_train,y_train,X_test,y_test))
+    
+    #print(getbetas(X_train,y_train,X_test,y_test))
     plot_betas(getbetas(X_train,y_train,X_test,y_test)[0][1:])
 
     print('Question 9')
@@ -1523,7 +1535,7 @@ def main():
     Q9dfgreater10=Q9df[Q9df['NumberOfRatings'] >= 10]
 
 
-    print(Q9dfgreater10.corr())
+    #print(Q9dfgreater10.corr())
     dependent_var='Average Difficulty'
     scatterdepandindependent(Q9dfgreater10,dependent_var)
     X = Q9dfgreater10.drop(columns=['Average Difficulty','NumberOfRatings'])  # assuming all columns except 'AverageProfessorRating' are features
@@ -1596,10 +1608,10 @@ def main():
 
     mybetas=getbetaslasso(X_train,y_train,X_test,y_test)[0]
     indices = np.argsort(mybetas)[::-1]
-    print(indices)
-    print(mybetas[indices])
-    print(getbetaslasso(X_train,y_train,X_test,y_test,alpha=1000))
-    print(getbetas(X_train,y_train,X_test,y_test))
+    
+    #print(mybetas[indices])
+    #print(getbetaslasso(X_train,y_train,X_test,y_test,alpha=1000))
+    #print(getbetas(X_train,y_train,X_test,y_test))
     plot_betas(getbetaslasso(X_train,y_train,X_test,y_test,alpha=1000)[0][1:],[i.name for i in [
         Q9dfgreater10[0],
         Q9dfgreater10[1],
@@ -1679,8 +1691,8 @@ def main():
 
     mybetas=getbetaslasso(X_train,y_train,X_test,y_test,alpha=1000)[0]
     indices = np.argsort(mybetas)[::-1]
-    print(indices)
-    print(getbetaslasso(X_train,y_train,X_test,y_test,alpha=100))
+    
+    #print(getbetaslasso(X_train,y_train,X_test,y_test,alpha=100))
     plot_betas(getbetaslasso(X_train,y_train,X_test,y_test,alpha=100)[0][1:])
 
     X = np.array([
@@ -1706,8 +1718,8 @@ def main():
 
     mybetas=getbetas(X_train,y_train,X_test,y_test)[0]
     indices = np.argsort(mybetas)[::-1]
-    print(indices)
-    print(getbetas(X_train,y_train,X_test,y_test))
+    
+    #print(getbetas(X_train,y_train,X_test,y_test))
     plot_betas(getbetas(X_train,y_train,X_test,y_test)[0][1:],[i.name for i in [
         Q9dfgreater10[0],
         Q9dfgreater10[13],
@@ -1731,8 +1743,8 @@ def main():
 
     mybetas=getbetas(X_train,y_train,X_test,y_test)[0]
     indices = np.argsort(mybetas)[::-1]
-    print(indices)
-    print(getbetas(X_train,y_train,X_test,y_test))
+    
+    #print(getbetas(X_train,y_train,X_test,y_test))
     plot_betas(getbetas(X_train,y_train,X_test,y_test)[0][1:])
 
     results=getfinalresults(X_train,y_train,X_test,y_test)
@@ -1755,8 +1767,9 @@ def main():
     plt.figure(figsize = (40,40))
     sns.heatmap(correlation_matrix,cmap = "RdBu_r", annot=True)
     plt.title('Correlation Matrix')
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
     plt.savefig(f"plot_{timestamp}.png")
+    plt.close()
     averagerating = Q10df['AverageProfessorRating']
     receivedapepper = Q10df['Received a pepper']
     fig, ax = plt.subplots(figsize=(10,6)) # Could also do figure and plt.() later on, but subplots are a generalization
@@ -1767,8 +1780,9 @@ def main():
     ax.set_ylabel("Received a pepper (Y)")
 
     plt.tight_layout()
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
     plt.savefig(f"plot_{timestamp}.png")
+    plt.close()
 
     # We definitely shouldn't draw a line through this lol
     # Logistic Regression with one independent variable
@@ -1780,9 +1794,6 @@ def main():
         X, y, test_size=0.2, random_state=RANDOM_SEED
     )
 
-    print(X_train) # see training data
-
-    print(y_train) # see target
 
     # Fit logistic regression
     log_reg_single = LogisticRegression()
@@ -1837,8 +1848,9 @@ def main():
     plt.title("Confusion Matrix")
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
     plt.savefig(f"plot_{timestamp}.png")
+    plt.close()
     # What do you think doc?
 
     # Visualize the curve
@@ -1861,8 +1873,9 @@ def main():
     plt.xlabel("AverageProfessorRating")
     plt.ylabel("Probability of Received a pepper")
     plt.legend()
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
     plt.savefig(f"plot_{timestamp}.png")
+    plt.close()
 
     # ROC Curve, get AUC
     fpr, tpr, thresholds = roc_curve(y_test, y_prob)
@@ -1873,8 +1886,9 @@ def main():
     plt.xlabel("False Positive Rate (1 - Specificity)")
     plt.ylabel("True Positive Rate (Sensitivity)")
     plt.legend()
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
     plt.savefig(f"plot_{timestamp}.png")
+    plt.close()
 
     # Try to find optimal threshold for fitting
     optimal_threshold_index = np.argmax(tpr - fpr)
@@ -1906,8 +1920,9 @@ def main():
     plt.legend()
 
     # Show plot
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
     plt.savefig(f"plot_{timestamp}.png")
+    plt.close()
 
     
     X = Q10df.drop(columns=['Received a pepper','NumberOfRatings','Number of ratings coming from online classes','HighConfMale','HighConfFemale',4,8,9,17,18])  # assuming all columns except 'AverageProfessorRating' are features
@@ -1916,8 +1931,6 @@ def main():
     # Apply min-max scaling to get variables on same scale
     scaler = MinMaxScaler()
     X = scaler.fit_transform(X) # Row-wise
-    print(X)
-    print(X.shape)
 
     # Logistic Regression with One Explanatory Variable
     y = Q10df['Received a pepper']
@@ -1927,8 +1940,6 @@ def main():
         X, y, test_size=0.2, random_state=RANDOM_SEED
     )
 
-    print(X_train)
-    print(y_train)
 
     # Fit logistic regression
     log_reg = LogisticRegression()
@@ -1967,8 +1978,9 @@ def main():
     plt.title("Confusion Matrix")
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
     plt.savefig(f"plot_{timestamp}.png")
+    plt.close()
 
     fpr, tpr, thresholds = roc_curve(y_test, y_prob)
     roc_auc = auc(fpr, tpr)
@@ -1978,8 +1990,9 @@ def main():
     plt.xlabel("False Positive Rate (1 - Specificity)")
     plt.ylabel("True Positive Rate (Sensitivity)")
     plt.legend()
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
     plt.savefig(f"plot_{timestamp}.png")
+    plt.close()
 
     optimal_threshold_index = np.argmax(tpr - fpr)
     optimal_threshold = thresholds[optimal_threshold_index]
@@ -2010,8 +2023,9 @@ def main():
     plt.legend()
 
     # Show plot
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
     plt.savefig(f"plot_{timestamp}.png")
+    plt.close()
 
             
 if __name__ == '__main__':
