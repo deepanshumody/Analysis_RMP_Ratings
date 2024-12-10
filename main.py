@@ -746,7 +746,7 @@ def getfinalresults(X_train,y_train,X_test,y_test,alphas=np.array([0.00001,0.000
     results.append(('Normal', None, rmse_normal, r2_normal))
     return results
 def getKFresults(X,y,alphas=np.array([0.00001,0.0001,0.001,0.01,0.1,1,2,5,10,20,100,1000,2000,100000])):
-    kf = KFold(n_splits=5, shuffle=True, random_state=seed)
+    kf = KFold(n_splits=5, shuffle=True, random_state=RANDOM_SEED)
     results = []
 
     for train_index, val_index in kf.split(X):
@@ -931,7 +931,7 @@ def forward_feature_selection_kfold(X, y, k=5, max_features=None):
     remaining_features = list(X.columns)
     selected_features = []
     results = []
-    kf = KFold(n_splits=k, shuffle=True, random_state=42)
+    kf = KFold(n_splits=k, shuffle=True, random_state=RANDOM_SEED)
     
     while remaining_features:
         best_rmse = float('inf')
@@ -1283,7 +1283,7 @@ def main():
     ]).T
 
     y = np.array(df_capstone_dropped_final['AverageProfessorRating'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=seed)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
 
     results=getKFresults(X_train,y_train)
 
@@ -1307,7 +1307,7 @@ def main():
     ]).T
 
     y = np.array(df_capstone_dropped_final['AverageProfessorRating'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=seed)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
     print("------------------------------------")
 
     print("Question 5")
@@ -1413,7 +1413,7 @@ def main():
     y = Q8dfgreater10['AverageProfessorRating']
 
     # Split the data into training and test sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
     # Perform forward feature selection with k-fold cross-validation
     selected_features_kfold, forward_results_kfold = forward_feature_selection_kfold(X_train, y_train, k=5)
 
@@ -1466,7 +1466,7 @@ def main():
     ]).T
 
     y = np.array(Q8dfgreater10['AverageProfessorRating'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=seed)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
 
 
     results=getKFresults(X_train,y_train)
@@ -1514,7 +1514,7 @@ def main():
     X_extended = np.hstack((X, X_sqrt, X_square, X_cube))
     X=X_extended
     y = np.array(Q8dfgreater10['AverageProfessorRating'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=seed)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
 
     results=getKFresults(X_train,y_train)
 
@@ -1527,7 +1527,7 @@ def main():
     ]).T
 
     y = np.array(Q8dfgreater10['AverageProfessorRating'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=seed)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
 
     results=getKFresults(X_train,y_train)
 
@@ -1544,7 +1544,7 @@ def main():
     Q8dfgreater10[12],
     ]).T
     y = np.array(Q8dfgreater10['AverageProfessorRating'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=seed)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
 
     results=getKFresults(X_train,y_train)
 
@@ -1575,7 +1575,7 @@ def main():
     y = Q9dfgreater10['Average Difficulty']
 
     # Split the data into training and test sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
 
     # Perform forward feature selection with k-fold cross-validation
     selected_features_kfold, forward_results_kfold = forward_feature_selection_kfold(X_train, y_train, k=5)
@@ -1630,7 +1630,7 @@ def main():
     ]).T
 
     y = np.array(Q9dfgreater10['Average Difficulty'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=seed)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
 
 
     results=getKFresults(X_train,y_train)
@@ -1684,7 +1684,7 @@ def main():
     X=X_extended
     y = np.array(Q9dfgreater10['Average Difficulty'])
     #y = np.sqrt(y)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=seed)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
 
     results=getKFresults(X_train,y_train)
 
@@ -1710,7 +1710,7 @@ def main():
     X_extended = np.hstack((X, X_sqrt))
     X=X_extended
     y = np.array(Q9dfgreater10['Average Difficulty'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=seed)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
 
     results=getKFresults(X_train,y_train)
 
@@ -1737,7 +1737,7 @@ def main():
     ]).T
 
     y = np.array(Q9dfgreater10['Average Difficulty'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=seed)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
 
     results=getKFresults(X_train,y_train)
 
@@ -1766,7 +1766,7 @@ def main():
     ]).T
 
     y = np.array(Q9dfgreater10['Average Difficulty'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=seed)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
 
     results=getKFresults(X_train,y_train)
 
