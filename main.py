@@ -1276,6 +1276,7 @@ def main():
         df_capstone_dropped_final['Proportion of online class ratings'],
         df_capstone_dropped_final['Proportion of students that said they would take the class again']
     ]])
+
     X = np.array([
     df_capstone_dropped_final['Proportion of students that said they would take the class again'],
     df_capstone_dropped_final['Average Difficulty'],
@@ -1302,84 +1303,14 @@ def main():
     results=getfinalresults(X_train,y_train,X_test,y_test)
     results_df = pd.DataFrame(results, columns=['Model', 'Alpha', 'RMSE', 'R2'])
     plot_results(results_df)
+
+
     X = np.array([
     df_capstone_dropped_final['Proportion of students that said they would take the class again']
     ]).T
 
     y = np.array(df_capstone_dropped_final['AverageProfessorRating'])
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
-    print("------------------------------------")
-
-    print("Question 5")
-    print("------------------------------------")
-    print("Average Difficulty: Male and Females 10 or more ratings")
-    avg_diff_male_female(df_capstone_greater_than_10)
-    print("------------------------------------")
-    print("Average Difficulty and Number of Ratings Correlation")
-    # Calculate the Pearson correlation between Average Rating and Average Difficulty
-    correlation = df_capstone_greater_than_10[['NumberOfRatings', 'Average Difficulty']].corr().iloc[0, 1]
-
-    # Display the result
-    print(f"The correlation between Number of rating and Average Difficulty is: {correlation:.3f}")
-
-    print("------------------------------------")
-
-    avg_diff_signif_test(df_capstone_greater_than_10)
-    print("------------------------------------")
-
-    avg_rating_conf(df_capstone_greater_than_10)
-
-    print("------------------------------------")
-
-    # Compute the Pearson correlation between 'Received a Pepper' and 'Average Difficulty'
-    correlation = df_capstone_greater_than_10[['Received a pepper', 'Average Difficulty']].corr().iloc[0, 1]
-
-    # Display the result
-    print(f"The correlation between 'Received a Pepper' and 'Average Difficulty' is: {correlation:.3f}")
-    print("------------------------------------")
-
-    print("Mann Whitney Test for Received a Pepper and Average Difficulty")
-    mannwhitney_ks_test(df_capstone_greater_than_10, 'Received a pepper', 'Average Difficulty')
-    print("------------------------------------")
-
-    print("Chi Squared Test for Pepper and Gender")    
-    CHI2(df_capstone_greater_than_10, 'HighConfMale', 'Received a pepper')
-    print("------------------------------------")
-
-    print("Chi Squared and Mann Whitney Test: Controlling for confounds")   
-    print("------------------------------------")
-
-    CHI2_MW(df_capstone_greater_than_10, 'HighConfMale', 'Received a pepper', 'Average Difficulty')
-    print("------------------------------------")
-
-    # Iterate over conditions and calculate Cohen's d with CI
-    print("Cohen's d and Bootstrap Confidence Interval Results:")
-    for pepper_status in [0, 1]:  # 0 = No Pepper, 1 = Pepper
-        # Filter male and female groups for the current pepper status
-        males = df_capstone_greater_than_10[(df_capstone_greater_than_10['HighConfMale'] == 1) &
-                       (df_capstone_greater_than_10['Received a pepper'] == pepper_status)]['Average Difficulty'].to_numpy()
-    
-        females = df_capstone_greater_than_10[(df_capstone_greater_than_10['HighConfMale'] == 0) &
-                     (df_capstone_greater_than_10['Received a pepper'] == pepper_status)]['Average Difficulty'].to_numpy()
-    
-        # Check if both groups have enough data
-        if len(males) > 1 and len(females) > 1:
-            # Calculate Cohen's d
-            d = cohen_d(males, females)
-        
-            # Calculate bootstrap confidence interval for Cohen's d
-            ci_lower_d, ci_upper_d = bootstrap_cohen_d_ci(males, females)
-        
-            # Print results for this subgroup
-            print(f"Group: Pepper = {'Yes' if pepper_status == 1 else 'No'}")
-            print(f"  Cohen's d (Effect Size): {d:.3f}")
-            print(f"  95% Bootstrap CI for Cohen's d: ({ci_lower_d:.3f}, {ci_upper_d:.3f})")
-        else:
-            # Print message if there is insufficient data
-            print(f"Group: Pepper = {'Yes' if pepper_status == 1 else 'No'}")
-            print("  Not enough data to calculate Cohen's d and its confidence interval.")
-    print("------------------------------------")
-
 
     results=getKFresults(X_train,y_train)
 
@@ -1395,6 +1326,8 @@ def main():
     results=getfinalresults(X_train,y_train,X_test,y_test)
     results_df = pd.DataFrame(results, columns=['Model', 'Alpha', 'RMSE', 'R2'])
     plot_results(results_df)
+
+
     print("Question 8")
     Q8df=df_capstone[['AverageProfessorRating','NumberOfRatings']].join(tagsdf, how='inner')
     Q8df=df_capstone[['AverageProfessorRating','NumberOfRatings']].join(tagsdf, how='inner')
@@ -1557,7 +1490,9 @@ def main():
     print(indices)
     print(getbetas(X_train,y_train,X_test,y_test))
     plot_betas(getbetas(X_train,y_train,X_test,y_test)[0][1:])
+
     print('Question 9')
+    
     Q9df=df_capstone[['Average Difficulty','NumberOfRatings']].join(tagsdf, how='inner')
 
     Q9df.dropna(inplace=True)
