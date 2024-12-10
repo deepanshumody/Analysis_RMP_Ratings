@@ -1755,7 +1755,8 @@ def main():
     plt.figure(figsize = (40,40))
     sns.heatmap(correlation_matrix,cmap = "RdBu_r", annot=True)
     plt.title('Correlation Matrix')
-    plt.show()    
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    plt.savefig(f"plot_{timestamp}.png")
     averagerating = Q10df['AverageProfessorRating']
     receivedapepper = Q10df['Received a pepper']
     fig, ax = plt.subplots(figsize=(10,6)) # Could also do figure and plt.() later on, but subplots are a generalization
@@ -1766,7 +1767,8 @@ def main():
     ax.set_ylabel("Received a pepper (Y)")
 
     plt.tight_layout()
-    plt.show()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    plt.savefig(f"plot_{timestamp}.png")
 
     # We definitely shouldn't draw a line through this lol
     # Logistic Regression with one independent variable
@@ -1835,7 +1837,8 @@ def main():
     plt.title("Confusion Matrix")
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
-    plt.show()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    plt.savefig(f"plot_{timestamp}.png")
     # What do you think doc?
 
     # Visualize the curve
@@ -1858,7 +1861,8 @@ def main():
     plt.xlabel("AverageProfessorRating")
     plt.ylabel("Probability of Received a pepper")
     plt.legend()
-    plt.show()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    plt.savefig(f"plot_{timestamp}.png")
 
     # ROC Curve, get AUC
     fpr, tpr, thresholds = roc_curve(y_test, y_prob)
@@ -1869,7 +1873,8 @@ def main():
     plt.xlabel("False Positive Rate (1 - Specificity)")
     plt.ylabel("True Positive Rate (Sensitivity)")
     plt.legend()
-    plt.show()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    plt.savefig(f"plot_{timestamp}.png")
 
     # Try to find optimal threshold for fitting
     optimal_threshold_index = np.argmax(tpr - fpr)
@@ -1901,7 +1906,8 @@ def main():
     plt.legend()
 
     # Show plot
-    plt.show()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    plt.savefig(f"plot_{timestamp}.png")
 
     
     X = Q10df.drop(columns=['Received a pepper','NumberOfRatings','Number of ratings coming from online classes','HighConfMale','HighConfFemale',4,8,9,17,18])  # assuming all columns except 'AverageProfessorRating' are features
@@ -1961,7 +1967,8 @@ def main():
     plt.title("Confusion Matrix")
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
-    plt.show()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    plt.savefig(f"plot_{timestamp}.png")
 
     fpr, tpr, thresholds = roc_curve(y_test, y_prob)
     roc_auc = auc(fpr, tpr)
@@ -1971,7 +1978,8 @@ def main():
     plt.xlabel("False Positive Rate (1 - Specificity)")
     plt.ylabel("True Positive Rate (Sensitivity)")
     plt.legend()
-    plt.show()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    plt.savefig(f"plot_{timestamp}.png")
 
     optimal_threshold_index = np.argmax(tpr - fpr)
     optimal_threshold = thresholds[optimal_threshold_index]
@@ -2002,7 +2010,8 @@ def main():
     plt.legend()
 
     # Show plot
-    plt.show()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    plt.savefig(f"plot_{timestamp}.png")
 
             
 if __name__ == '__main__':
