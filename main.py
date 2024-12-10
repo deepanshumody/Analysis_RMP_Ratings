@@ -14,6 +14,7 @@ from scipy.stats import levene
 from math import sqrt
 from scipy.stats import t
 from scipy.stats import chi2_contingency
+import datetime
 
 # Seed value for random number generators to obtain reproducible results
 RANDOM_SEED = 10676128
@@ -690,7 +691,8 @@ def getfinalresults(X_train,y_train,X_test,y_test,alphas=np.array([0.00001,0.000
 
     plt.grid(True)
     plt.tight_layout()
-    plt.show()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    plt.savefig(f"plot_{timestamp}.png")
 
     ## Pretty even spread in the residuals (homoscedasticity? - check)
     fig, ax = plt.subplots(figsize=(10,6))
@@ -732,7 +734,8 @@ def getfinalresults(X_train,y_train,X_test,y_test,alphas=np.array([0.00001,0.000
 
         plt.grid(True)
         plt.tight_layout()
-        plt.show()
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        plt.savefig(f"plot_{timestamp}.png")
 
         ## Pretty even spread in the residuals (homoscedasticity? - check)
         fig, ax = plt.subplots(figsize=(10,6))
@@ -849,7 +852,8 @@ def plot_results(results_df,alphas=np.array([0.00001,0.0001,0.001,0.01,0.1,1,2,5
     plt.ylabel('RMSE')
     plt.legend()
     plt.grid(True)
-    plt.show()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    plt.savefig(f"plot_{timestamp}.png")
 
     plt.figure(figsize=(10, 6))
     plt.xscale("log")
@@ -864,7 +868,8 @@ def plot_results(results_df,alphas=np.array([0.00001,0.0001,0.001,0.01,0.1,1,2,5
     plt.ylabel('R2')
     plt.legend()
     plt.grid(True)
-    plt.show()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    plt.savefig(f"plot_{timestamp}.png")
 def plot_betas(betas,feature_names=0,mytype='Normal',alpha=10):
     # Plot the coefficients (betas) for all models
     plt.figure(figsize=(24, 6))
@@ -883,7 +888,8 @@ def plot_betas(betas,feature_names=0,mytype='Normal',alpha=10):
     plt.ylabel('Coefficient Value')
 
     plt.tight_layout()
-    plt.show()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    plt.savefig(f"plot_{timestamp}.png")
 def scatterdepandindependent(df,dependent_var):
     for var in df.columns:
         plt.figure(figsize=(8, 5))
@@ -892,7 +898,8 @@ def scatterdepandindependent(df,dependent_var):
         plt.xlabel(var)
         plt.ylabel(dependent_var)
         plt.grid(True)
-        plt.show()
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        plt.savefig(f"plot_{timestamp}.png")
 def plot_forward_selection_results(results_df):
     plt.figure(figsize=(12, 6))
 
@@ -913,7 +920,8 @@ def plot_forward_selection_results(results_df):
     plt.grid(True)
 
     plt.tight_layout()
-    plt.show()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    plt.savefig(f"plot_{timestamp}.png")
 def forward_feature_selection_kfold(X, y, k=5, max_features=None):
     """
     Perform forward feature selection using k-fold cross-validation.
@@ -1218,10 +1226,12 @@ def main():
     print(df_only_na['AverageProfessorRating'].mean(),df_only_na['AverageProfessorRating'].median(),df_only_na['AverageProfessorRating'].std())
     sns.boxplot(df_only_na['AverageProfessorRating'])
     plt.title('Distribution of AverageProfessorRating if Proportion column is missing')
-    plt.show()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    plt.savefig(f"plot_{timestamp}.png")
     sns.boxplot(df_capstone_na_dropped['AverageProfessorRating'])
     plt.title('Distribution of AverageProfessorRating if Proportion column is present')
-    plt.show()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    plt.savefig(f"plot_{timestamp}.png")
     plt.figure(figsize=(10, 6))
     sns.histplot(df_capstone_na_dropped['AverageProfessorRating'], bins=30, kde=True, color='blue', label='AverageProfessorRating if prop not missing', stat='density')
     sns.histplot(df_only_na['AverageProfessorRating'], bins=30, kde=True, color='red', label='AverageProfessorRating if prop missing', stat='density')
@@ -1229,14 +1239,16 @@ def main():
     plt.xlabel('AverageProfessorRating')
     plt.ylabel('Density')
     plt.legend()
-    plt.show()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    plt.savefig(f"plot_{timestamp}.png")
     df_capstone_na_dropped['Proportion of online class ratings'] = df_capstone_na_dropped['Number of ratings coming from online classes'].div(df_capstone_na_dropped['NumberOfRatings'])
     
     correlation_matrix = df_capstone_na_dropped.corr()
 
     sns.heatmap(correlation_matrix,cmap = "RdBu_r", annot=True)
     plt.title('Correlation Matrix')
-    plt.show()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    plt.savefig(f"plot_{timestamp}.png")
     df_capstone_dropped_final=df_capstone_na_dropped
     df_capstone_dropped_final=df_capstone_dropped_final[(df_capstone_dropped_final['HighConfMale']==1) & (df_capstone_dropped_final['HighConfFemale']==0) | (df_capstone_dropped_final['HighConfMale']==0) & (df_capstone_dropped_final['HighConfFemale']==1)]
     dependent_var='AverageProfessorRating'
@@ -1339,7 +1351,8 @@ def main():
     plt.figure(figsize = (40,40))
     sns.heatmap(correlation_matrix,cmap = "RdBu_r", annot=True)
     plt.title('Correlation Matrix')
-    plt.show()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    plt.savefig(f"plot_{timestamp}.png")
     dependent_var='AverageProfessorRating'
     scatterdepandindependent(Q8dfgreater10,dependent_var)
     X = Q8dfgreater10.drop(columns=['AverageProfessorRating','NumberOfRatings'])  # assuming all columns except 'AverageProfessorRating' are features
@@ -1505,7 +1518,7 @@ def main():
 
     print(Q9dfgreater10.corr())
     dependent_var='Average Difficulty'
-    scatterdepandindependent(Q9dfgreater10)
+    scatterdepandindependent(Q9dfgreater10,dependent_var)
     X = Q9dfgreater10.drop(columns=['Average Difficulty','NumberOfRatings'])  # assuming all columns except 'AverageProfessorRating' are features
     y = Q9dfgreater10['Average Difficulty']
 
