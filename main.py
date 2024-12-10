@@ -1747,22 +1747,22 @@ def main():
     Q10df.dropna(inplace=True)
 
     for i in Q10df.columns[8:]:
-        Q10df[i] = Q10df[i].div(Q10df['Number of ratings'])
+        Q10df[i] = Q10df[i].div(Q10df['NumberOfRatings'])
 
-    Q10df=Q10df[(Q10df['Male Professor']==1) & (Q10df['Female Professor']==0) | (Q10df['Male Professor']==0) & (Q10df['Female Professor']==1)]
+    Q10df=Q10df[(Q10df['HighConfMale']==1) & (Q10df['HighConfFemale']==0) | (Q10df['HighConfMale']==0) & (Q10df['HighConfFemale']==1)]
 
     correlation_matrix = Q10df.corr()
     plt.figure(figsize = (40,40))
     sns.heatmap(correlation_matrix,cmap = "RdBu_r", annot=True)
     plt.title('Correlation Matrix')
     plt.show()    
-    averagerating = Q10df['Average Rating']
+    averagerating = Q10df['AverageProfessorRating']
     receivedapepper = Q10df['Received a pepper']
     fig, ax = plt.subplots(figsize=(10,6)) # Could also do figure and plt.() later on, but subplots are a generalization
 
     ax.scatter(x=averagerating, y=receivedapepper, c='purple') # Purple for NYU :)
-    ax.set_title("Scatterplot of Average Rating V Received a pepper")
-    ax.set_xlabel("Average Rating (X)")
+    ax.set_title("Scatterplot of AverageProfessorRating V Received a pepper")
+    ax.set_xlabel("AverageProfessorRating (X)")
     ax.set_ylabel("Received a pepper (Y)")
 
     plt.tight_layout()
@@ -1770,7 +1770,7 @@ def main():
 
     # We definitely shouldn't draw a line through this lol
     # Logistic Regression with one independent variable
-    X = Q10df[['Average Rating']] # Double bracket for shaping (not a worry for multiple logistic regression)
+    X = Q10df[['AverageProfessorRating']] # Double bracket for shaping (not a worry for multiple logistic regression)
     y = Q10df['Received a pepper']
 
     # Train-test split from scikit learn
@@ -1818,12 +1818,12 @@ def main():
 
     # Interpret coefficients
     print(log_reg_single.coef_)
-    # Interpret: For every increase in 1 unit of Average Rating, we expect the odds of Received a pepper relative to odds of no Received a pepper (the ratio) to increase by e^0.03
+    # Interpret: For every increase in 1 unit of AverageProfessorRating, we expect the odds of Received a pepper relative to odds of no Received a pepper (the ratio) to increase by e^0.03
     print(np.exp(log_reg_single.coef_[0])) # Slight boost for odds of Received a pepper
 
     print(log_reg_single.intercept_)
-    print(np.exp(log_reg_single.intercept_)) # Not super interpretable, Average Rating wouldn't be 0. But "base" odds here.
-    # If Average Rating was 0, p / 1 -p or Received a pepper v no Received a pepper would be small odds
+    print(np.exp(log_reg_single.intercept_)) # Not super interpretable, AverageProfessorRating wouldn't be 0. But "base" odds here.
+    # If AverageProfessorRating was 0, p / 1 -p or Received a pepper v no Received a pepper would be small odds
 
     # Confusion Matrix
     conf_matrix_single = confusion_matrix(y_test, y_pred) #y_pred_new
@@ -1853,9 +1853,9 @@ def main():
     # Add threshold line
     threshold = THRESHOLD
     threshold_x = (np.log(threshold / (1 - threshold)) - intercept) / beta1  # Solve for x when sigmoid(x) = threshold
-    plt.axvline(threshold_x, color='red', linestyle='--', label=f'Threshold at Average Rating = {threshold_x:.2f}')
+    plt.axvline(threshold_x, color='red', linestyle='--', label=f'Threshold at AverageProfessorRating = {threshold_x:.2f}')
     plt.title("Visualizing the Curve")
-    plt.xlabel("Average Rating")
+    plt.xlabel("AverageProfessorRating")
     plt.ylabel("Probability of Received a pepper")
     plt.legend()
     plt.show()
@@ -1904,7 +1904,7 @@ def main():
     plt.show()
 
     
-    X = Q10df.drop(columns=['Received a pepper','Number of ratings','Number of ratings coming from online classes','Male Professor','Female Professor',4,8,9,17,18])  # assuming all columns except 'Average Rating' are features
+    X = Q10df.drop(columns=['Received a pepper','NumberOfRatings','Number of ratings coming from online classes','HighConfMale','HighConfFemale',4,8,9,17,18])  # assuming all columns except 'AverageProfessorRating' are features
     X.columns =X.columns.astype(str)
     # Multiple
     # Apply min-max scaling to get variables on same scale
