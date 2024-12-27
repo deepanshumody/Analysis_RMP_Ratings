@@ -1,27 +1,28 @@
 # Importing libraries
 import pandas as pd
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
+from scipy.stats import levene,t, chi2_contingency
 import warnings
-from sklearn.model_selection import KFold  
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
+from math import sqrt
+import datetime
+from sklearn.model_selection import KFold, train_test_split
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
-from scipy.stats import levene
-from math import sqrt
-from scipy.stats import t
-from scipy.stats import chi2_contingency
-import datetime
-from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     confusion_matrix,
     roc_curve,
     auc,
-    classification_report)
-from sklearn.preprocessing import MinMaxScaler
+    classification_report
+)
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+
+matplotlib.use('Agg') # Use the 'Agg' backend, which is non-interactive
 
 # Seed value for random number generators to obtain reproducible results
 RANDOM_SEED = 10676128
@@ -213,8 +214,7 @@ def print_pvals(p_vals_df):
     print(significant_results_smallest)
     print(significant_results_biggest)
 
-def compute_rmse(y_true, y_pred):
-    return np.sqrt(np.mean((y_true - y_pred) ** 2))
+
 def lavenes_test(df1, df2, column):
     # Extract Average Ratings for Male and Female Professors
     ratings_male = df1[column]
@@ -233,19 +233,7 @@ def lavenes_test(df1, df2, column):
     else:
         print("The variances are not significantly different (fail to reject the null hypothesis).")
 
-def compute_r2(y_true, y_pred):
-    ss_total = np.sum((y_true - np.mean(y_true)) ** 2)
-    ss_residual = np.sum((y_true - y_pred) ** 2)
-    return 1 - (ss_residual / ss_total)
 
-def normal_regression(X_train, y_train):
-    return np.linalg.inv(X_train.T @ X_train) @ X_train.T @ y_train
-
-def ridge_regression(X_train, y_train, alpha):
-    n_features = X_train.shape[1]
-    identity = np.eye(n_features)
-    identity[0, 0] = 0  
-    return np.linalg.inv(X_train.T @ X_train + alpha * identity) @ X_train.T @ y_train
 def lavenes_test_group(group_distributions):
     stat, p_value = levene(*group_distributions)  # Unpack the list of distributions
     print(f"Levene's Test Statistic: {stat:.4f}, P-value: {p_value:.4f}")
@@ -541,10 +529,10 @@ def avg_diff_signif_test(df):
 def avg_rating_conf(df):
     from scipy.stats import ks_2samp
 
-    # Step 1: Calculate the median of 'Number of ratings'
+    # Step 1: Calculate the median of 'NumberOfRatings'
     median_ratings = df['AverageProfessorRating'].median()
 
-    # Step 2: Split 'Average Difficulty' into two groups based on the median of 'Number of ratings'
+    # Step 2: Split 'Average Difficulty' into two groups based on the median of 'NumberOfRatings'
     below_median_difficulty = df[df['AverageProfessorRating'] <= median_ratings]['Average Difficulty']
     above_median_difficulty = df[df['AverageProfessorRating'] > median_ratings]['Average Difficulty']
 
@@ -651,7 +639,35 @@ def bootstrap_cohen_d_ci(group1, group2, num_bootstrap=1000, alpha=0.005):
     upper = np.percentile(bootstrapped_d, 100 * (1 - alpha / 2))
     return lower, upper
 
+# -----------------
+# Utility Functions
+# -----------------
+
+def compute_rmse(y_true, y_pred):
+    return np.sqrt(np.mean((y_true - y_pred) ** 2))
+
+def compute_r2(y_true, y_pred):
+    ss_total = np.sum((y_true - np.mean(y_true)) ** 2)
+    ss_residual = np.sum((y_true - y_pred) ** 2)
+    return 1 - (ss_residual / ss_total)
+
+def normal_regression(X_train, y_train):
+    # (X^T X)^(-1) X^T y
+    return np.linalg.inv(X_train.T @ X_train) @ X_train.T @ y_train
+
+def ridge_regression(X_train, y_train, alpha):
+    # (X^T X + alpha * I)^(-1) X^T y
+    n_features = X_train.shape[1]
+    identity = np.eye(n_features)
+    # We often do not regularize the bias term => set identity[0, 0] = 0
+    identity[0, 0] = 0
+    return np.linalg.inv(X_train.T @ X_train + alpha * identity) @ X_train.T @ y_train
+
 def lasso_regression(X_train, y_train, alpha, max_iter=10000, tol=1e-6):
+    """
+    Coordinate Descent for Lasso.
+    Note: For real-world usage, consider sklearn.linear_model.Lasso.
+    """
     m, n = X_train.shape
     beta = np.zeros(n)
     for _ in range(max_iter):
@@ -659,261 +675,56 @@ def lasso_regression(X_train, y_train, alpha, max_iter=10000, tol=1e-6):
         for j in range(n):
             residual = y_train - X_train @ beta + X_train[:, j] * beta[j]
             rho = X_train[:, j].T @ residual
-            if j == 0:  
+            if j == 0:  # Intercept (no regularization)
                 beta[j] = rho / (X_train[:, j].T @ X_train[:, j])
             else:
+                # Soft-thresholding
                 beta[j] = np.sign(rho) * max(0, abs(rho) - alpha) / (X_train[:, j].T @ X_train[:, j])
         if np.max(np.abs(beta - beta_old)) < tol:
             break
     return beta
 
-def getfinalresults(X_train,y_train,X_test,y_test,alphas=np.array([0.00001,0.0001,0.001,0.01,0.1,1,2,5,10,20,100,1000,2000,100000])):
-    results = []
+def plot_feature_vs_dependent(df, dependent_var):
+    """
+    Generates scatter plots for each feature in the DataFrame against the dependent variable.
 
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
-    X_train_scaled = np.hstack((np.ones((X_train_scaled.shape[0], 1)), X_train_scaled))
-    X_test_scaled = np.hstack((np.ones((X_test_scaled.shape[0], 1)), X_test_scaled))
+    Parameters:
+        df (pd.DataFrame): The input DataFrame.
+        dependent_var (str): The dependent variable column name.
 
-    # Normal Regression
-    beta_normal = normal_regression(X_train_scaled, y_train)
-    y_pred_normal = X_test_scaled @ beta_normal
-    rmse_normal = compute_rmse(y_test, y_pred_normal)
-    r2_normal = compute_r2(y_test, y_pred_normal)
+    Returns:
+        None
+    """
+    # Exclude the dependent variable from the features
+    features = df.columns.drop([dependent_var])
 
-    residuals = y_test - y_pred_normal
-
-    ## Residual plot
-    plt.figure(figsize=(10, 6))
-    # Grab standardized residuals for plot
-    std_residuals = (residuals - residuals.mean()) / residuals.std()
-    plt.scatter(y_pred_normal, std_residuals, color='blue')
-    plt.axhline(y=0, color='red', linestyle='--', linewidth=1)  # Horizontal line at y=0
-
-    # Labels and title
-    plt.title("Residual Plot")
-    plt.xlabel("Predicted Values (y_hat)")
-    plt.ylabel("Standardized Residuals")
-
-    plt.grid(True)
-    plt.tight_layout()
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
-    plt.savefig(f"plot_{timestamp}.png")
-    plt.close()
-
-
-    ## Pretty even spread in the residuals (homoscedasticity? - check)
-    fig, ax = plt.subplots(figsize=(10,6))
-
-    # See histogram of residuals to check for normality
-    ax.hist(residuals, bins=15, color='green', edgecolor='black', density=True) # Add density
-    ax.set_title("Histogram of Residuals")
-    ax.set_xlabel("Residuals")
-    ax.set_ylabel("Density")
+    # Define number of rows and columns for subplots
+    n_features = len(features)
+    n_cols = 3  # Number of columns in the subplot grid
+    n_rows = -(-n_features // n_cols) # Ceiling division
     
-    # Ridge Regression
-    for alpha in alphas:
-        beta_ridge = ridge_regression(X_train_scaled, y_train, alpha)
-        y_pred_ridge = X_test_scaled @ beta_ridge
-        rmse_ridge = compute_rmse(y_test, y_pred_ridge)
-        r2_ridge = compute_r2(y_test, y_pred_ridge)
-        results.append(('Ridge', alpha, rmse_ridge, r2_ridge))
-    
-    # Lasso Regression
-    for alpha in alphas:
-        beta_lasso = lasso_regression(X_train_scaled, y_train, alpha)
-        y_pred_lasso = X_test_scaled @ beta_lasso
-        rmse_lasso = compute_rmse(y_test, y_pred_lasso)
-        r2_lasso = compute_r2(y_test, y_pred_lasso)
-        results.append(('Lasso', alpha, rmse_lasso, r2_lasso))
-        residuals = y_test - y_pred_lasso
+    # Set figure size based on rows and columns
+    plt.figure(figsize=(20, 5 * n_rows))
 
-        ## Residual plot
-        plt.figure(figsize=(10, 6))
-        # Grab standardized residuals for plot
-        std_residuals = (residuals - residuals.mean()) / residuals.std()
-        plt.scatter(y_pred_lasso, std_residuals, color='blue')
-        plt.axhline(y=0, color='red', linestyle='--', linewidth=1)  # Horizontal line at y=0
-
-        # Labels and title
-        plt.title(f"Residual Plot lasso alpha= {alpha}")
-        plt.xlabel("Predicted Values (y_hat)")
-        plt.ylabel("Standardized Residuals")
-
-        plt.grid(True)
-        plt.tight_layout()
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
-        #(f"plot_{timestamp}.png")
-        #plt.close()
-        ## Pretty even spread in the residuals (homoscedasticity? - check)
-        fig, ax = plt.subplots(figsize=(10,6))
-
-        # See histogram of residuals to check for normality
-        ax.hist(residuals, bins=15, color='green', edgecolor='black', density=True) # Add density
-        ax.set_title("Histogram of Residuals")
-        ax.set_xlabel("Residuals")
-        ax.set_ylabel("Density")
-    
-    results.append(('Normal', None, rmse_normal, r2_normal))
-    return results
-def getKFresults(X,y,alphas=np.array([0.00001,0.0001,0.001,0.01,0.1,1,2,5,10,20,100,1000,2000,100000])):
-    kf = KFold(n_splits=5, shuffle=True, random_state=RANDOM_SEED)
-    results = []
-
-    for train_index, val_index in kf.split(X):
-        X_train, X_val = X[train_index], X[val_index]
-        y_train, y_val = y[train_index], y[val_index]
-        scaler = StandardScaler()
-        X_train_scaled = scaler.fit_transform(X_train)
-        X_val_scaled = scaler.transform(X_val)
-        X_train_scaled = np.hstack((np.ones((X_train_scaled.shape[0], 1)), X_train_scaled))
-        X_val_scaled = np.hstack((np.ones((X_val_scaled.shape[0], 1)), X_val_scaled))
-
-        # Normal Regression
-        beta_normal = normal_regression(X_train_scaled, y_train)
-        y_pred_normal = X_val_scaled @ beta_normal
-        rmse_normal = compute_rmse(y_val, y_pred_normal)
-        r2_normal = compute_r2(y_val, y_pred_normal)
-        
-        # Ridge Regression
-        for alpha in alphas:
-            beta_ridge = ridge_regression(X_train_scaled, y_train, alpha)
-            y_pred_ridge = X_val_scaled @ beta_ridge
-            rmse_ridge = compute_rmse(y_val, y_pred_ridge)
-            r2_ridge = compute_r2(y_val, y_pred_ridge)
-            results.append(('Ridge', beta_ridge,alpha, rmse_ridge, r2_ridge))
-        
-        # Lasso Regression
-        for alpha in alphas:
-            beta_lasso = lasso_regression(X_train_scaled, y_train, alpha)
-            y_pred_lasso = X_val_scaled @ beta_lasso
-            rmse_lasso = compute_rmse(y_val, y_pred_lasso)
-            r2_lasso = compute_r2(y_val, y_pred_lasso)
-            results.append(('Lasso', beta_lasso, alpha, rmse_lasso, r2_lasso))
-        
-        results.append(('Normal',beta_normal, None, rmse_normal, r2_normal))
-    return results
-
-def getbetas(X_train,y_train,X_test,y_test):
-    results=[]
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
-    X_train_scaled = np.hstack((np.ones((X_train_scaled.shape[0], 1)), X_train_scaled))
-    X_test_scaled = np.hstack((np.ones((X_test_scaled.shape[0], 1)), X_test_scaled))
-
-    # Normal Regression
-    beta_normal = normal_regression(X_train_scaled, y_train)
-    y_pred_normal = X_test_scaled @ beta_normal
-    rmse_normal = compute_rmse(y_test, y_pred_normal)
-    r2_normal = compute_r2(y_test, y_pred_normal)
-    results.append(('Normal',beta_normal, rmse_normal, r2_normal))
-    return beta_normal,rmse_normal,r2_normal
-
-def getbetaslasso(X_train,y_train,X_test,y_test,alpha=10):
-    results=[]
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
-    X_train_scaled = np.hstack((np.ones((X_train_scaled.shape[0], 1)), X_train_scaled))
-    X_test_scaled = np.hstack((np.ones((X_test_scaled.shape[0], 1)), X_test_scaled))
-
-    # Normal Regression
-    beta_lasso = lasso_regression(X_train_scaled, y_train, alpha)
-    y_pred_lasso = X_test_scaled @ beta_lasso
-    rmse_lasso = compute_rmse(y_test, y_pred_lasso)
-    r2_lasso = compute_r2(y_test, y_pred_lasso)
-    results.append(('Lasso', beta_lasso, rmse_lasso, r2_lasso))
-    return beta_lasso,rmse_lasso,r2_lasso
-
-def getbetasridge(X_train,y_train,X_test,y_test,alpha=10):
-    results=[]
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
-    X_train_scaled = np.hstack((np.ones((X_train_scaled.shape[0], 1)), X_train_scaled))
-    X_test_scaled = np.hstack((np.ones((X_test_scaled.shape[0], 1)), X_test_scaled))
-
-    # Normal Regression
-    beta_ridge = ridge_regression(X_train_scaled, y_train, alpha)
-    y_pred_ridge = X_test_scaled @ beta_ridge
-    rmse_ridge = compute_rmse(y_test, y_pred_ridge)
-    r2_ridge = compute_r2(y_test, y_pred_ridge)
-    results.append(('ridge', beta_ridge, rmse_ridge, r2_ridge))
-    return beta_ridge,rmse_ridge,r2_ridge
-
-def plot_results(results_df,alphas=np.array([0.00001,0.0001,0.001,0.01,0.1,1,2,5,10,20,100,1000,2000,100000])):
-    ridge_results = results_df[results_df['Model'] == 'Ridge'].drop(columns=['Model']).groupby('Alpha').mean()
-    lasso_results = results_df[results_df['Model'] == 'Lasso'].drop(columns=['Model']).groupby('Alpha').mean()
-    normal_results = results_df[results_df['Model']=='Normal'].drop(columns=['Model','Alpha']).mean()
-    
-    plt.figure(figsize=(10, 6))
-    plt.xscale("log")
-
-    plt.plot(alphas, ridge_results['RMSE'], marker='o', label='Ridge Regression RMSE')
-    plt.plot(alphas, lasso_results['RMSE'], marker='s', label='Lasso Regression RMSE')
-    
-    plt.axhline(y=normal_results['RMSE'], color='r', linestyle='--', label='Normal Regression RMSE')
-
-    plt.title('RMSE Comparison Across Models')
-    plt.xlabel('Alpha (Regularization Parameter)')
-    plt.ylabel('RMSE')
-    plt.legend()
-    plt.grid(True)
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
-    plt.savefig(f"plot_{timestamp}.png")
-    plt.close()
-
-    plt.figure(figsize=(10, 6))
-    plt.xscale("log")
-
-    plt.plot(alphas, ridge_results['R2'], marker='o', label='Ridge Regression R2')
-    plt.plot(alphas, lasso_results['R2'], marker='s', label='Lasso Regression R2')
-
-    plt.axhline(y=normal_results['R2'], color='r', linestyle='--', label='Normal Regression R2')
-
-    plt.title('R2 Comparison Across Models')
-    plt.xlabel('Alpha (Regularization Parameter)')
-    plt.ylabel('R2')
-    plt.legend()
-    plt.grid(True)
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
-    plt.savefig(f"plot_{timestamp}.png")
-    plt.close()
-def plot_betas(betas,feature_names=0,mytype='Normal',alpha=10):
-    # Plot the coefficients (betas) for all models
-    plt.figure(figsize=(24, 6))
-    # Ridge Regression Coefficients (for best alpha)
-    if(feature_names==0):
-        feature_names=range(len(betas))
-    #plt.xticks(range(len(betas)))
-    plt.bar([str(i) for i in feature_names], betas)
-    if mytype=='Normal':
-        plt.title(f'Coefficients Regression)')
-    if mytype=='Ridge':
-        plt.title(f'Coefficients Ridge (alpha={alpha})')
-    if mytype=='Lasso':
-        plt.title(f'Coefficients Ridge (alpha={alpha})')
-    plt.xlabel('Feature Index')
-    plt.ylabel('Coefficient Value')
-
-    plt.tight_layout()
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
-    plt.savefig(f"plot_{timestamp}.png")
-    plt.close()
-def scatterdepandindependent(df,dependent_var):
-    for var in df.columns:
-        plt.figure(figsize=(8, 5))
-        sns.scatterplot(x=df[var], y=df[dependent_var])
-        plt.title(f'Scatterplot of {dependent_var} vs {var}')
-        plt.xlabel(var)
+    # Create a scatterplot for each feature
+    for idx, feature in enumerate(features, start=1):
+        plt.subplot(n_rows, n_cols, idx)
+        sns.scatterplot(x=df[feature], y=df[dependent_var])
+        plt.title(f'{dependent_var} vs {feature}')
+        plt.xlabel(feature)
         plt.ylabel(dependent_var)
         plt.grid(True)
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
-        plt.savefig(f"plot_{timestamp}.png")
-        plt.close()
+
+    # Adjust layout to avoid overlap
+    plt.tight_layout()
+    plt.show()
+
+# Forward Feature Selection
+
 def plot_forward_selection_results(results_df):
+    """
+    Plots RMSE and R² over the number of features selected.
+    """
     plt.figure(figsize=(12, 6))
 
     # RMSE plot
@@ -933,9 +744,9 @@ def plot_forward_selection_results(results_df):
     plt.grid(True)
 
     plt.tight_layout()
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
-    plt.savefig(f"plot_{timestamp}.png")
-    plt.close()
+    plt.show()
+
+
 def forward_feature_selection_kfold(X, y, k=5, max_features=None):
     """
     Perform forward feature selection using k-fold cross-validation.
@@ -944,11 +755,11 @@ def forward_feature_selection_kfold(X, y, k=5, max_features=None):
     - X: DataFrame of features
     - y: Series of target variable
     - k: Number of folds for cross-validation
-    - max_features: Max number of features to select. If None, select all.
+    - max_features: Max number of features to select. If None, selects all.
 
     Returns:
-    - selected_features: List of selected features
-    - results: List of results for each feature set (including average RMSE, R², etc.)
+    - selected_features: List of features selected in order
+    - results: List of results for each increment of feature selection
     """
     remaining_features = list(X.columns)
     selected_features = []
@@ -962,61 +773,657 @@ def forward_feature_selection_kfold(X, y, k=5, max_features=None):
         best_alpha = None
         
         for feature in remaining_features:
-            # Create a subset of the data with the current selected features + one more
+            # Subset with current selected + new feature
             X_temp = X[selected_features + [feature]]
-            
             rmse_list = []
             r2_list = []
             
             for train_idx, val_idx in kf.split(X_temp):
-                X_train_fold, X_val_fold = X_temp.iloc[train_idx], X_temp.iloc[val_idx]
-                y_train_fold, y_val_fold = y.iloc[train_idx], y.iloc[val_idx]
+                X_train_fold = X_temp.iloc[train_idx]
+                X_val_fold   = X_temp.iloc[val_idx]
+                y_train_fold = y.iloc[train_idx]
+                y_val_fold   = y.iloc[val_idx]
                 
-                # Train a model
                 model = LinearRegression()
                 model.fit(X_train_fold, y_train_fold)
                 
-                # Make predictions and evaluate the model
                 y_pred_fold = model.predict(X_val_fold)
                 rmse_fold = np.sqrt(mean_squared_error(y_val_fold, y_pred_fold))
-                r2_fold = r2_score(y_val_fold, y_pred_fold)
+                r2_fold   = r2_score(y_val_fold, y_pred_fold)
                 
                 rmse_list.append(rmse_fold)
                 r2_list.append(r2_fold)
             
-            # Calculate average RMSE and R² across folds
             avg_rmse = np.mean(rmse_list)
-            avg_r2 = np.mean(r2_list)
+            avg_r2   = np.mean(r2_list)
             
-            # Store the best feature and corresponding metrics
             if avg_rmse < best_rmse:
-                best_rmse = avg_rmse
+                best_rmse   = avg_rmse
                 best_feature = feature
-                best_betas = model.coef_
-                best_alpha = model.intercept_
+                best_betas   = model.coef_
+                best_alpha   = model.intercept_
         
-        # Update the list of selected features
         selected_features.append(best_feature)
         remaining_features.remove(best_feature)
         
-        # Append the result for the current model
-        results.append([selected_features.copy(), best_betas, best_alpha, best_rmse, avg_r2])
+        results.append([
+            selected_features.copy(),
+            best_betas,
+            best_alpha,
+            best_rmse,
+            avg_r2
+        ])
         
-        # Stop if we've reached the maximum number of features (if specified)
         if max_features is not None and len(selected_features) >= max_features:
             break
 
     return selected_features, results
 
+# -----------------
+# Main Classes - RegressionAnalysis(Regression) and PepperAnalysis(Classification)
+# -----------------
+
+class RegressionAnalysis:
+    def __init__(self, X, y, alphas=None, seed=RANDOM_SEED, n_splits=5):
+        """
+        X, y: features and target arrays
+        alphas: array-like of alpha values for Ridge/Lasso
+        seed: random seed for reproducibility
+        n_splits: number of splits for cross-validation
+        """
+        self.X = X
+        self.y = y
+        self.seed = seed
+        self.n_splits = n_splits
+        self.results_cv = []
+        self.results_test = []
+
+        if alphas is None:
+            self.alphas = np.array([0.00001, 0.0001, 0.001, 0.01, 
+                                    0.1, 1, 2, 5, 10, 20, 100, 1000])
+        else:
+            self.alphas = alphas
+
+    def cross_validate(self):
+        """
+        Perform KFold cross-validation on the entire dataset (X, y)
+        for Normal, Ridge, Lasso across each alpha (for Ridge/Lasso).
+        We store all fold results in self.results_cv as tuples:
+          (model_type, alpha, fold_idx, rmse, r2, betas).
+        """
+        kf = KFold(n_splits=self.n_splits, shuffle=True, random_state=self.seed)
+        self.results_cv = []
+        
+        fold_num = 1
+        for train_index, val_index in kf.split(self.X):
+            X_train, X_val = self.X[train_index], self.X[val_index]
+            y_train, y_val = self.y[train_index], self.y[val_index]
+
+            # Scale
+            scaler = StandardScaler()
+            X_train_scaled = scaler.fit_transform(X_train)
+            X_val_scaled = scaler.transform(X_val)
+
+            # Add intercept
+            X_train_scaled = np.hstack((np.ones((X_train_scaled.shape[0], 1)), X_train_scaled))
+            X_val_scaled = np.hstack((np.ones((X_val_scaled.shape[0], 1)), X_val_scaled))
+
+            # 1) Normal Regression
+            beta_normal = normal_regression(X_train_scaled, y_train)
+            y_pred_normal = X_val_scaled @ beta_normal
+            rmse_normal = compute_rmse(y_val, y_pred_normal)
+            r2_normal = compute_r2(y_val, y_pred_normal)
+            self.results_cv.append(('Normal', None, fold_num, rmse_normal, r2_normal, beta_normal))
+
+            # 2) Ridge for each alpha
+            for alpha in self.alphas:
+                beta_ridge = ridge_regression(X_train_scaled, y_train, alpha)
+                y_pred_ridge = X_val_scaled @ beta_ridge
+                rmse_ridge = compute_rmse(y_val, y_pred_ridge)
+                r2_ridge = compute_r2(y_val, y_pred_ridge)
+                self.results_cv.append(('Ridge', alpha, fold_num, rmse_ridge, r2_ridge, beta_ridge))
+
+            # 3) Lasso for each alpha
+            for alpha in self.alphas:
+                beta_lasso = lasso_regression(X_train_scaled, y_train, alpha)
+                y_pred_lasso = X_val_scaled @ beta_lasso
+                rmse_lasso = compute_rmse(y_val, y_pred_lasso)
+                r2_lasso = compute_r2(y_val, y_pred_lasso)
+                self.results_cv.append(('Lasso', alpha, fold_num, rmse_lasso, r2_lasso, beta_lasso))
+            
+            fold_num += 1
+
+    def get_cv_results_df(self):
+        """Return cross-validation results as a pandas DataFrame."""
+        columns = ['Model','Alpha','Fold','RMSE','R2','Betas']
+        return pd.DataFrame(self.results_cv, columns=columns)
+
+    def pick_best_alpha(self, model_type='Ridge', metric='RMSE'):
+        """
+        From cross-validation results, pick the alpha that has the best
+        (lowest) mean RMSE or (highest) mean R2 across folds for a given model_type.
+
+        Parameters
+        ----------
+        model_type : {'Ridge', 'Lasso'}
+            The type of model for which to pick best alpha.
+        metric : {'RMSE', 'R2'}
+            The metric to optimize. 'RMSE' picks the alpha with min RMSE;
+            'R2' picks the alpha with max R2.
+
+        Returns
+        -------
+        best_alpha : float
+            The alpha that performed best in cross-validation.
+        best_score : float
+            The corresponding CV score (RMSE or R2) for that alpha.
+        """
+        # Pull the cross-validation results into a DataFrame
+        df = self.get_cv_results_df()
+
+        # Group by (Model, Alpha), then compute the mean of RMSE and R2 across folds
+        df_agg = df.groupby(['Model','Alpha'])[['RMSE','R2']].mean().reset_index()
+
+        # Filter only to the chosen model_type
+        # (Make sure user isn't trying to pick alpha for "Normal", which has no alpha)
+        if model_type not in ['Ridge', 'Lasso']:
+            raise ValueError("model_type must be 'Ridge' or 'Lasso' for picking best alpha.")
+
+        df_agg = df_agg[df_agg['Model'] == model_type]
+
+        if df_agg.empty:
+            raise ValueError(f"No cross-validation results found for model '{model_type}'. "
+                            f"Check that you ran CV and that your model_type is correct.")
+
+        if metric not in ['RMSE','R2']:
+            raise ValueError("metric must be 'RMSE' or 'R2'.")
+
+        # Find the alpha that minimizes or maximizes the chosen metric
+        if metric == 'RMSE':
+            # We want the alpha with the *lowest* mean RMSE
+            best_idx = df_agg['RMSE'].idxmin()
+            best_alpha = df_agg.loc[best_idx, 'Alpha']
+            best_score = df_agg.loc[best_idx, 'RMSE']
+        else:  # metric == 'R2'
+            # We want the alpha with the *highest* mean R2
+            best_idx = df_agg['R2'].idxmax()
+            best_alpha = df_agg.loc[best_idx, 'Alpha']
+            best_score = df_agg.loc[best_idx, 'R2']
+
+        return best_alpha, best_score
+
+
+    def finalize_and_evaluate(self, X_train, y_train, X_test, y_test, 
+                              best_ridge_alpha, best_lasso_alpha, 
+                              make_residual_plots=True):
+        """
+        Given the best alpha for Ridge and Lasso (from cross_val),
+        train Normal, best Ridge, best Lasso on the entire training set,
+        evaluate on the test set, and optionally produce residual plots
+        in subplots.
+        """
+        # Scale the data
+        scaler = StandardScaler()
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+
+        # Add intercept
+        X_train_scaled = np.hstack((np.ones((X_train_scaled.shape[0], 1)), X_train_scaled))
+        X_test_scaled = np.hstack((np.ones((X_test_scaled.shape[0], 1)), X_test_scaled))
+
+        self.results_test = []
+
+        # 1) Normal
+        beta_normal = normal_regression(X_train_scaled, y_train)
+        y_pred_normal = X_test_scaled @ beta_normal
+        rmse_normal = compute_rmse(y_test, y_pred_normal)
+        r2_normal = compute_r2(y_test, y_pred_normal)
+        self.results_test.append(('Normal', None, rmse_normal, r2_normal, beta_normal))
+
+        # 2) Ridge (best_ridge_alpha)
+        beta_ridge = ridge_regression(X_train_scaled, y_train, best_ridge_alpha)
+        y_pred_ridge = X_test_scaled @ beta_ridge
+        rmse_ridge = compute_rmse(y_test, y_pred_ridge)
+        r2_ridge = compute_r2(y_test, y_pred_ridge)
+        self.results_test.append(('Ridge', best_ridge_alpha, rmse_ridge, r2_ridge, beta_ridge))
+
+        # 3) Lasso (best_lasso_alpha)
+        beta_lasso = lasso_regression(X_train_scaled, y_train, best_lasso_alpha)
+        y_pred_lasso = X_test_scaled @ beta_lasso
+        rmse_lasso = compute_rmse(y_test, y_pred_lasso)
+        r2_lasso = compute_r2(y_test, y_pred_lasso)
+        self.results_test.append(('Lasso', best_lasso_alpha, rmse_lasso, r2_lasso, beta_lasso))
+
+        # Optional: combined residual plots in subplots
+        if make_residual_plots:
+            # We'll do Normal, Ridge, Lasso side by side
+            fig, axs = plt.subplots(2, 3, figsize=(18, 10))  # 2 rows, 3 columns
+
+            # Normal
+            residuals_normal = y_test - y_pred_normal
+            std_res_normal = (residuals_normal - residuals_normal.mean()) / residuals_normal.std()
+            axs[0, 0].scatter(y_pred_normal, std_res_normal, color='blue')
+            axs[0, 0].axhline(y=0, color='red', linestyle='--', linewidth=1)
+            axs[0, 0].set_title("Normal Residual Plot")
+            axs[0, 0].set_xlabel("Predicted")
+            axs[0, 0].set_ylabel("Std Residuals")
+            axs[1, 0].hist(residuals_normal, bins=15, color='green', edgecolor='black', density=True)
+            axs[1, 0].set_title("Normal Residual Histogram")
+
+            # Ridge
+            residuals_ridge = y_test - y_pred_ridge
+            std_res_ridge = (residuals_ridge - residuals_ridge.mean()) / residuals_ridge.std()
+            axs[0, 1].scatter(y_pred_ridge, std_res_ridge, color='blue')
+            axs[0, 1].axhline(y=0, color='red', linestyle='--', linewidth=1)
+            axs[0, 1].set_title(f"Ridge (alpha={best_ridge_alpha}) Residual")
+            axs[0, 1].set_xlabel("Predicted")
+            axs[0, 1].set_ylabel("Std Residuals")
+            axs[1, 1].hist(residuals_ridge, bins=15, color='green', edgecolor='black', density=True)
+            axs[1, 1].set_title("Ridge Residual Histogram")
+
+            # Lasso
+            residuals_lasso = y_test - y_pred_lasso
+            std_res_lasso = (residuals_lasso - residuals_lasso.mean()) / residuals_lasso.std()
+            axs[0, 2].scatter(y_pred_lasso, std_res_lasso, color='blue')
+            axs[0, 2].axhline(y=0, color='red', linestyle='--', linewidth=1)
+            axs[0, 2].set_title(f"Lasso (alpha={best_lasso_alpha}) Residual")
+            axs[0, 2].set_xlabel("Predicted")
+            axs[0, 2].set_ylabel("Std Residuals")
+            axs[1, 2].hist(residuals_lasso, bins=15, color='green', edgecolor='black', density=True)
+            axs[1, 2].set_title("Lasso Residual Histogram")
+
+            plt.tight_layout()
+            plt.show()
+
+    def get_test_results_df(self):
+        """Return final test results as a DataFrame."""
+        columns = ['Model','Alpha','RMSE','R2','Betas']
+        return pd.DataFrame(self.results_test, columns=columns)
+
+    def plot_cv_rmse_r2(self):
+        """
+        Plot average CV RMSE and R^2 vs. alpha on log scale.
+        """
+        df = self.get_cv_results_df()
+        df_agg = df.groupby(['Model','Alpha'])[['RMSE','R2']].mean().reset_index()
+
+        normal_subset = df_agg[df_agg['Model'] == 'Normal']
+        ridge_subset = df_agg[df_agg['Model'] == 'Ridge']
+        lasso_subset = df_agg[df_agg['Model'] == 'Lasso']
+
+        # RMSE plot
+        plt.figure(figsize=(10,6))
+        plt.xscale('log')
+
+        plt.plot(ridge_subset['Alpha'], ridge_subset['RMSE'], marker='o', label='Ridge RMSE')
+        plt.plot(lasso_subset['Alpha'], lasso_subset['RMSE'], marker='s', label='Lasso RMSE')
+        if len(normal_subset) > 0:
+            normal_rmse = normal_subset['RMSE'].mean()
+            plt.axhline(y=normal_rmse, color='r', linestyle='--', label=f'Normal RMSE={normal_rmse:.3f}')
+
+        plt.title('CV RMSE vs. Alpha')
+        plt.xlabel('Alpha')
+        plt.ylabel('RMSE')
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
+        # R2 plot
+        plt.figure(figsize=(10,6))
+        plt.xscale('log')
+
+        plt.plot(ridge_subset['Alpha'], ridge_subset['R2'], marker='o', label='Ridge R2')
+        plt.plot(lasso_subset['Alpha'], lasso_subset['R2'], marker='s', label='Lasso R2')
+        if len(normal_subset) > 0:
+            normal_r2 = normal_subset['R2'].mean()
+            plt.axhline(y=normal_r2, color='r', linestyle='--', label=f'Normal R2={normal_r2:.3f}')
+
+        plt.title('CV R2 vs. Alpha')
+        plt.xlabel('Alpha')
+        plt.ylabel('R2')
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+    
+    def plot_coefs(self, betas, feature_names=None, model_name='Normal', alpha=None):
+
+        if feature_names is None:
+            feature_names = [f"x{i}" for i in range(len(betas))]
+        
+        plt.figure(figsize=(10, 6))
+        plt.bar(feature_names, betas)
+        
+        if model_name == 'Normal':
+            plt.title("Coefficients: Normal Regression")
+        else:
+            if alpha is not None:
+                plt.title(f"Coefficients: {model_name} (alpha={alpha})")
+            else:
+                plt.title(f"Coefficients: {model_name}")
+
+        plt.xlabel("Features")
+        plt.ylabel("Coefficient Value")
+        plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()
+        plt.show()
+
+class PepperAnalysis:
+    def __init__(
+        self, 
+        df_capstone, 
+        tagsdf, 
+        seed=RANDOM_SEED
+    ):
+        """
+        Initialize PepperAnalysis with the two dataframes and a random seed.
+        df_capstone: main DataFrame with course/professor data
+        tagsdf: additional DataFrame to be joined
+        """
+        self.seed = seed
+        self.df_capstone = df_capstone
+        self.tagsdf = tagsdf
+        self.tagsdf.columns=self.tagsdf.columns.astype(str)
+        self.df = None  # Will hold the merged/cleaned DataFrame later
+        
+        # Placeholders for trained models (if you want to access them outside)
+        self.log_reg_single = None
+        self.log_reg_multi = None
+        self.svm_model = None
+
+    def preprocess_data(self):
+        """
+        Merge (inner join) df_capstone and tagsdf, drop NaN, compute proportions,
+        filter for Male or Female professor, etc. 
+        Stores the cleaned data in self.df.
+        """
+        # 1) Merge
+        Q10df = self.df_capstone.join(self.tagsdf, how='inner')
+
+        # 2) Drop missing
+        Q10df.dropna(inplace=True)
+
+        # 3) Convert columns i >= 8 to proportion by dividing by "NumberOfRatings"
+        for i in Q10df.columns[8:]:
+            Q10df[i] = Q10df[i].div(Q10df['NumberOfRatings'])
+
+        # 4) Filter rows to (Male=1,Female=0) or (Male=0,Female=1)
+        #    means "exactly one of them is 1"
+        #    The parentheses for & | are crucial.
+        Q10df = Q10df[((Q10df['HighConfMale'] == 1) & (Q10df['HighConfFemale'] == 0)) |
+                      ((Q10df['HighConfMale'] == 0) & (Q10df['HighConfFemale'] == 1))]
+
+        self.df = Q10df.copy()  # store cleaned DataFrame in self.df
+
+    def plot_correlation_matrix(self):
+        """
+        Plots a large correlation matrix for self.df, if you want to see all features.
+        """
+        if self.df is None:
+            raise ValueError("Data not preprocessed yet. Call preprocess_data() first.")
+        
+        correlation_matrix = self.df.corr()
+        plt.figure(figsize=(40, 40))
+        sns.heatmap(correlation_matrix, cmap="RdBu_r", annot=True)
+        plt.title("Correlation Matrix")
+        plt.show()
+
+    def plot_scatter_single(self, x_col='Average Rating', y_col='Received a pepper'):
+        """
+        Simple scatter plot of x_col vs. y_col in self.df.
+        By default: x=Average Rating, y=Received a pepper
+        """
+        if self.df is None:
+            raise ValueError("Data not preprocessed yet. Call preprocess_data() first.")
+
+        x_vals = self.df[x_col]
+        y_vals = self.df[y_col]
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.scatter(x=x_vals, y=y_vals, c='purple')
+        ax.set_title(f"Scatterplot of {x_col} vs. {y_col}")
+        ax.set_xlabel(x_col)
+        ax.set_ylabel(y_col)
+        plt.tight_layout()
+        plt.show()
+
+    def logistic_regression_single_var(self, x_col='Average Rating', y_col='Received a pepper', threshold=0.5):
+        """
+        Fits a single-variable Logistic Regression using x_col as predictor for y_col.
+        Plots confusion matrix, classification report, ROC, etc.
+        
+        threshold: The cutoff for assigning class = 1 if P(Y=1) > threshold.
+        """
+        if self.df is None:
+            raise ValueError("Data not preprocessed yet. Call preprocess_data() first.")
+
+        X = self.df[[x_col]]  # must be 2D => double bracket
+        y = self.df[y_col]
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=self.seed
+        )
+
+        # Fit logistic regression
+        log_reg_single = LogisticRegression()
+        log_reg_single.fit(X_train, y_train)
+        self.log_reg_single = log_reg_single  # store model
+
+        # Predictions
+        y_pred = log_reg_single.predict(X_test)
+        y_prob = log_reg_single.predict_proba(X_test)[:, 1]
+
+        # Thresholding
+        y_pred_new = (y_prob > threshold).astype(int)
+
+        # Classification report
+        class_report = classification_report(y_test, y_pred_new)
+        print("Classification Report (Single-Var Logistic):")
+        print(class_report)
+
+        # Coefficients
+        beta1 = log_reg_single.coef_[0][0]
+        intercept = log_reg_single.intercept_[0]
+        print(f"Coefficient (beta1): {beta1:.4f}")
+        print(f"Intercept: {intercept:.4f}")
+        print(f"Odds multiplier (exp(beta1)): {np.exp(beta1):.4f}")
+        print(f"Intercept as odds => exp(intercept): {np.exp(intercept):.4f}")
+
+        # Confusion Matrix
+        conf_matrix_single = confusion_matrix(y_test, y_pred_new)
+        sns.heatmap(
+            conf_matrix_single, annot=True, fmt="d", cmap="Blues",
+            xticklabels=["0 (No Pepper)", "1 (Pepper)"],
+            yticklabels=["0 (No Pepper)", "1 (Pepper)"]
+        )
+        plt.title("Confusion Matrix (Single-Var Logistic)")
+        plt.xlabel("Predicted")
+        plt.ylabel("Actual")
+        plt.show()
+
+        # Plot the Sigmoid curve
+        x_array = np.linspace(X_train.min()[0], X_train.max()[0], 100)
+        # logistic function
+        sig = 1 / (1 + np.exp(-(beta1 * x_array + intercept)))
+        plt.plot(x_array, sig, label="Sigmoid Curve")
+
+        # Mark the threshold point
+        # Solve for x when sigmoid = threshold => x = [ln(threshold/(1-threshold)) - intercept]/beta1
+        threshold_x = (np.log(threshold / (1 - threshold)) - intercept) / beta1
+        plt.axvline(threshold_x, color='red', linestyle='--',
+                    label=f'Threshold at x={threshold_x:.2f}')
+
+        plt.title("Single-Var Logistic Sigmoid Curve")
+        plt.xlabel(x_col)
+        plt.ylabel("Probability of Pepper (y=1)")
+        plt.legend()
+        plt.show()
+
+        # ROC Curve
+        fpr, tpr, thresholds = roc_curve(y_test, y_prob)
+        roc_auc = auc(fpr, tpr)
+        plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
+        plt.plot([0, 1], [0, 1], linestyle='--', color='gray')
+        plt.title("ROC Curve (Single-Var Logistic)")
+        plt.xlabel("False Positive Rate (1 - Specificity)")
+        plt.ylabel("True Positive Rate (Sensitivity)")
+        plt.legend()
+        plt.show()
+
+        # If you want the "optimal threshold" from Youden's J statistic (tpr - fpr)
+        optimal_threshold_index = np.argmax(tpr - fpr)
+        optimal_threshold = thresholds[optimal_threshold_index]
+        print(f"Optimal Threshold (Youden's J): {optimal_threshold:.3f}")
+
+    def logistic_regression_multi_var(self, drop_cols=None, threshold=0.5):
+        """
+        Fits a multi-variable logistic regression on self.df.
+        You can specify columns to drop (like 'Received a pepper', 'NumberOfRatings', etc.).
+        We apply MinMax scaling and do a train/test split, then show classification metrics, confusion matrix, ROC, etc.
+        
+        threshold: Probability threshold for predicting class=1
+        """
+        if self.df is None:
+            raise ValueError("Data not preprocessed yet. Call preprocess_data() first.")
+
+        if drop_cols is None:
+            # By default, let's drop these columns to avoid target leakage or data not needed
+            drop_cols = ['Received a pepper', 'NumberOfRatings', 
+                         'Number of ratings coming from online classes',
+                         'HighConfMale', 'HighConfFemale']
+
+        # X => all columns except what's in drop_cols
+        # but also be mindful of columns that might be numeric only
+        df_clean = self.df.drop(columns=drop_cols, errors='ignore')
+
+        # The target
+        y = self.df['Received a pepper']
+
+        # Convert X to numeric
+        X = df_clean.select_dtypes(include=[np.number])
+
+        # Scale
+        scaler = MinMaxScaler()
+        X_scaled = scaler.fit_transform(X)
+
+        # Train/test
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_scaled, y, test_size=0.2, random_state=self.seed
+        )
+
+        # Fit logistic regression
+        log_reg = LogisticRegression()
+        log_reg.fit(X_train, y_train)
+        self.log_reg_multi = log_reg  # store model
+
+        # Predictions
+        y_pred = log_reg.predict(X_test)
+        y_prob = log_reg.predict_proba(X_test)[:, 1]
+
+        # Thresholding
+        y_pred_new = (y_prob > threshold).astype(int)
+
+        # Classification report
+        class_report = classification_report(y_test, y_pred_new)
+        print("\nClassification Report (Multi-Var Logistic):")
+        print(class_report)
+
+        print("\nCoefficients (log scale):")
+        print(log_reg.coef_)
+        print("Exp of Coefficients (odds multipliers):")
+        print(np.exp(log_reg.coef_))
+        print("Intercept:", log_reg.intercept_)
+        print("Intercept (exp):", np.exp(log_reg.intercept_))
+
+        # Confusion matrix
+        conf_matrix = confusion_matrix(y_test, y_pred_new)
+        sns.heatmap(
+            conf_matrix, annot=True, fmt="d", cmap="Blues",
+            xticklabels=["0 (No Pepper)", "1 (Pepper)"],
+            yticklabels=["0 (No Pepper)", "1 (Pepper)"]
+        )
+        plt.title("Confusion Matrix (Multi-Var Logistic)")
+        plt.xlabel("Predicted")
+        plt.ylabel("Actual")
+        plt.show()
+
+        # ROC Curve
+        fpr, tpr, thresholds = roc_curve(y_test, y_prob)
+        roc_auc = auc(fpr, tpr)
+        plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
+        plt.plot([0, 1], [0, 1], linestyle='--', color='gray')
+        plt.title("ROC Curve (Multi-Var Logistic)")
+        plt.xlabel("False Positive Rate (1 - Specificity)")
+        plt.ylabel("True Positive Rate (Sensitivity)")
+        plt.legend()
+        plt.show()
+
+        # If you want the "optimal threshold" from Youden's J statistic
+        optimal_threshold_index = np.argmax(tpr - fpr)
+        optimal_threshold = thresholds[optimal_threshold_index]
+        print(f"Optimal Threshold (Youden's J) for multi-var logistic: {optimal_threshold:.3f}")
+
+    def train_svm(self, drop_cols=None):
+        """
+        Train a linear SVM on self.df for classification (pepper vs. no pepper),
+        then print classification report and plot ROC curve.
+        """
+        if self.df is None:
+            raise ValueError("Data not preprocessed yet. Call preprocess_data() first.")
+
+        if drop_cols is None:
+            drop_cols = ['Received a pepper', 'NumberOfRatings', 
+                         'Number of ratings coming from online classes',
+                         'HighConfMale', 'HighConfFemale']
+
+        y = self.df['Received a pepper']
+        df_clean = self.df.drop(columns=drop_cols, errors='ignore')
+        X = df_clean.select_dtypes(include=[np.number])
+
+        # Scale
+        scaler = MinMaxScaler()
+        X_scaled = scaler.fit_transform(X)
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_scaled, y, test_size=0.2, random_state=self.seed
+        )
+
+        svm_model = SVC(kernel='linear', probability=True, random_state=self.seed)
+        svm_model.fit(X_train, y_train)
+        self.svm_model = svm_model  # store model
+
+        y_pred = svm_model.predict(X_test)
+        y_prob = svm_model.predict_proba(X_test)[:, 1]
+
+        print("Classification Report (SVM):")
+        print(classification_report(y_test, y_pred))
+
+        # Coefficients
+        w = svm_model.coef_[0]
+        b = svm_model.intercept_[0]
+        print("\nSVM Coefficients (w):", w)
+        print("SVM Intercept (b):", b)
+
+        # ROC curve
+        fpr, tpr, thresholds = roc_curve(y_test, y_prob)
+        roc_auc = auc(fpr, tpr)
+        plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
+        plt.plot([0, 1], [0, 1], linestyle='--', color='gray')
+        plt.title("ROC Curve (SVM)")
+        plt.xlabel("False Positive Rate (1 - Specificity)")
+        plt.ylabel("True Positive Rate (Sensitivity)")
+        plt.legend()
+        plt.show()
+        
 def main():
     warnings.filterwarnings("ignore", category=FutureWarning)
 
     print("Question 1")
     df_capstone = pd.read_csv('./rmpCapstoneNum.csv', header=0)
-    tagsdf=pd.read_csv('./rmpCapstoneTags.csv', header=None)
+    tagsdf=pd.read_csv('./rmpCapstoneTags.csv', header=0)
     df_capstone.columns = ['AverageProfessorRating', 'Average Difficulty', 'NumberOfRatings', 'Received a pepper', 
                        'Proportion of students that said they would take the class again', 
                        'Number of ratings coming from online classes', 'HighConfMale', 'HighConfFemale']
+    tagsdf.columns = list(range(20))
     df_capstone_greater_than_10_all = df_capstone[(df_capstone['NumberOfRatings'] >= 10)]
     df_capstone_greater_than_10 = df_capstone[(df_capstone['NumberOfRatings'] >= 10) & ~((df_capstone['HighConfMale'] == 1) & (df_capstone['HighConfFemale'] == 1)) & ~((df_capstone['HighConfMale'] == 0) & (df_capstone['HighConfFemale'] == 0))]
     df_capstone_greater_than_10_men = df_capstone_greater_than_10[df_capstone_greater_than_10['HighConfMale'] == 1]
@@ -1233,327 +1640,483 @@ def main():
 
     
     print("Question 7")
-    print("Comparing NA vs non NA distributions to help decide if rows should be dropped")
-    df_capstone_na_dropped=df_capstone_greater_than_10_all.dropna()
-    print(df_capstone_na_dropped['AverageProfessorRating'].mean(),df_capstone_na_dropped['AverageProfessorRating'].median(),df_capstone_na_dropped['AverageProfessorRating'].std())
-    df_only_na=df_capstone_greater_than_10_all[df_capstone_greater_than_10_all.isnull().any(axis=1)]
-    print(df_only_na['AverageProfessorRating'].mean(),df_only_na['AverageProfessorRating'].median(),df_only_na['AverageProfessorRating'].std())
-    sns.boxplot(df_only_na['AverageProfessorRating'])
-    plt.title('Distribution of AverageProfessorRating if Proportion column is missing')
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
-    plt.savefig(f"plot_{timestamp}.png")
-    plt.close()
-    sns.boxplot(df_capstone_na_dropped['AverageProfessorRating'])
-    plt.title('Distribution of AverageProfessorRating if Proportion column is present')
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
-    plt.savefig(f"plot_{timestamp}.png")
-    plt.close()
-    plt.figure(figsize=(10, 6))
-    sns.histplot(df_capstone_na_dropped['AverageProfessorRating'], bins=30, kde=True, color='blue', label='AverageProfessorRating if prop not missing', stat='density')
-    sns.histplot(df_only_na['AverageProfessorRating'], bins=30, kde=True, color='red', label='AverageProfessorRating if prop missing', stat='density')
-    plt.title('')
-    plt.xlabel('AverageProfessorRating')
+    print("------------------------------------")
+
+    df_capstone_greater_than_10=df_capstone_greater_than_10.drop(columns=['Ratings Group', 'Difficulty Groups',
+       'Ratings Groups', 'Stratification Group'])
+    print(df_capstone_greater_than_10.describe())
+    print("Missing values per column:\n", df_capstone_greater_than_10_all.isna().sum())
+
+    # Split data into rows with missing values and rows without missing values
+    df_no_na = df_capstone_greater_than_10.dropna().copy()
+    df_missing = df_capstone_greater_than_10[df_capstone_greater_than_10.isnull().any(axis=1)].copy()
+
+    # -----------------------------
+    # 3. Descriptive Statistics
+    # -----------------------------
+
+    print("\n--- Descriptive Statistics (No Missing) ---")
+    print(f"Mean:   {df_no_na['AverageProfessorRating'].mean():.3f}")
+    print(f"Median: {df_no_na['AverageProfessorRating'].median():.3f}")
+    print(f"Std:    {df_no_na['AverageProfessorRating'].std():.3f}")
+
+    print("\n--- Descriptive Statistics (Missing) ---")
+    print(f"Mean:   {df_missing['AverageProfessorRating'].mean():.3f}")
+    print(f"Median: {df_missing['AverageProfessorRating'].median():.3f}")
+    print(f"Std:    {df_missing['AverageProfessorRating'].std():.3f}")
+
+    # -----------------------------
+    # 4. Boxplots Comparing Groups
+    # -----------------------------
+
+    plt.figure(figsize=(6, 4))
+    sns.boxplot(x=df_missing['AverageProfessorRating'], color='red')
+    plt.title('AverageProfessorRating if Proportion column is missing')
+    plt.tight_layout()
+    plt.show()
+
+    plt.figure(figsize=(6, 4))
+    sns.boxplot(x=df_no_na['AverageProfessorRating'], color='blue')
+    plt.title('AverageProfessorRating if Proportion column is present')
+    plt.tight_layout()
+    plt.show()
+
+    # -----------------------------
+    # 5. Histogram Comparison
+    # -----------------------------
+
+    plt.figure(figsize=(8, 5))
+    sns.histplot(df_no_na['AverageProfessorRating'], 
+                bins=30, kde=True, color='blue', 
+                label='Proportion not missing', 
+                stat='density')
+
+    sns.histplot(df_missing['AverageProfessorRating'], 
+                bins=30, kde=True, color='red', 
+                label='Proportion missing', 
+                stat='density')
+
+    plt.xlabel('Average Professor Rating')
     plt.ylabel('Density')
     plt.legend()
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
-    plt.savefig(f"plot_{timestamp}.png")
-    plt.close()
-    df_capstone_na_dropped['Proportion of online class ratings'] = df_capstone_na_dropped['Number of ratings coming from online classes'].div(df_capstone_na_dropped['NumberOfRatings'])
+    plt.title('AverageProfessorRatings by Missing vs. Non-Missing Proportion')
+    plt.tight_layout()
+    plt.show()
+
+    # -----------------------------
+    # 6. Two-Sample Tests
+    # -----------------------------
+
+    ks_stat, ks_p_val = stats.ks_2samp(df_no_na['AverageProfessorRating'], df_missing['AverageProfessorRating'])
+    mw_stat, mw_p_val = stats.mannwhitneyu(df_no_na['AverageProfessorRating'], df_missing['AverageProfessorRating'])
+
+    print("\n--- Two-Sample Tests (AverageProfessorRating) ---")
+    print(f"KS Test:           Statistic={ks_stat:.3f}, P-value={ks_p_val:.3f}")
+    print(f"Mann-Whitney Test: Statistic={mw_stat:.3f}, P-value={mw_p_val:.3f}")
+
+    # -----------------------------
+    # 7. Summary Stats of No-NA Data
+    # -----------------------------
+
+    print("\n--- Summary Stats: df_no_na ---")
+    print(df_no_na.describe())
+
+    # -----------------------------
+    # 8. Add Proportion of Online Class Ratings
+    # -----------------------------
+
+    df_no_na['Proportion of online class ratings'] = (
+        df_no_na['Number of ratings coming from online classes'] /
+        df_no_na['NumberOfRatings']
+    )
+
+    # -----------------------------
+    # 9. Correlation Matrix
+    # -----------------------------
+    correlation_matrix = df_no_na.corr()
+    plt.figure(figsize=(15, 15))
+    sns.heatmap(correlation_matrix, cmap="RdBu_r", annot=True)
+    plt.title('Correlation Matrix')
+    plt.tight_layout()
+    plt.show()
+
+    # -----------------------------
+    # 10. Final DataFrame Filtering
+    # -----------------------------
+
+    # Keep rows where only male OR female professor
+    df_capstone_dropped_final = df_no_na[
+        ((df_no_na['HighConfMale'] == 1) & (df_no_na['HighConfFemale'] == 0)) |
+        ((df_no_na['HighConfMale'] == 0) & (df_no_na['HighConfFemale'] == 1))
+    ]
+
+    # Display the final DataFrame
+    print("\n--- Final Filtered DataFrame ---")
+    print(df_capstone_dropped_final.head())
+    print(f"Final DF Shape: {df_capstone_dropped_final.shape}")
+
+    dependent_var='AverageProfessorRating'
+
+    plot_feature_vs_dependent(df_capstone_dropped_final, dependent_var)
     
-    correlation_matrix = df_capstone_na_dropped.corr()
-
-    sns.heatmap(correlation_matrix,cmap = "RdBu_r", annot=True)
-    plt.title('Correlation Matrix')
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
-    plt.savefig(f"plot_{timestamp}.png")
-    plt.close()
-    df_capstone_dropped_final=df_capstone_na_dropped
-    df_capstone_dropped_final=df_capstone_dropped_final[(df_capstone_dropped_final['HighConfMale']==1) & (df_capstone_dropped_final['HighConfFemale']==0) | (df_capstone_dropped_final['HighConfMale']==0) & (df_capstone_dropped_final['HighConfFemale']==1)]
-    dependent_var='AverageProfessorRating'
-    scatterdepandindependent(df_capstone_dropped_final,dependent_var)
-
-    X = np.array([
-    df_capstone_dropped_final['Average Difficulty'],
-    df_capstone_dropped_final['NumberOfRatings'],
-    df_capstone_dropped_final['Received a pepper'],
-    df_capstone_dropped_final['HighConfFemale'],
-    df_capstone_dropped_final['Proportion of online class ratings'],
-    df_capstone_dropped_final['Proportion of students that said they would take the class again']
-    ]).T
-
-    y = np.array(df_capstone_dropped_final['AverageProfessorRating'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
-
-    results=getKFresults(X,y,alphas=np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 2, 5, 10, 20, 100, 1000,1500, 100000]))
-
-    results_df2 = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2'])
-    results_df = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2']).drop(columns='Betas')
-
-    plot_results(results_df,alphas=np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 2, 5, 10, 20, 100, 1000,1500, 100000]))
-
-    results=getfinalresults(X_train,y_train,X_test,y_test,alphas=np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 2, 5, 10, 20, 100, 1000,2000, 100000]))
-    results_df = pd.DataFrame(results, columns=['Model', 'Alpha', 'RMSE', 'R2'])
-    plot_results(results_df,alphas=np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 2, 5, 10, 20, 100, 1000,2000, 100000]))
-    mybetas=getbetas(X_train,y_train,X_test,y_test)[0]
-    indices = np.argsort(mybetas)[::-1]
-      
-    #print(getbetas(X_train,y_train,X_test,y_test))
-    plot_betas(getbetas(X_train,y_train,X_test,y_test)[0][1:],[i.name for i in [
-        df_capstone_dropped_final['Average Difficulty'],
-        df_capstone_dropped_final['NumberOfRatings'],
-        df_capstone_dropped_final['Received a pepper'],
-        df_capstone_dropped_final['HighConfFemale'],
-        df_capstone_dropped_final['Proportion of online class ratings'],
-        df_capstone_dropped_final['Proportion of students that said they would take the class again']
-    ]])
-
-    X = np.array([
-    df_capstone_dropped_final['Proportion of students that said they would take the class again'],
-    df_capstone_dropped_final['Average Difficulty'],
-    df_capstone_dropped_final['Received a pepper']
-    ]).T
-
-    y = np.array(df_capstone_dropped_final['AverageProfessorRating'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
-
-    results=getKFresults(X_train,y_train)
-
-    results_df2 = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2'])
-    results_df = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2']).drop(columns='Betas')
-    plot_results(results_df)
-    mybetas=getbetas(X_train,y_train,X_test,y_test)[0] 
-    indices = np.argsort(mybetas)[::-1] 
-      
-    #print(getbetas(X_train,y_train,X_test,y_test))
-    plot_betas(getbetas(X_train,y_train,X_test,y_test)[0][1:],[i.name for i in [
-        df_capstone_dropped_final['Proportion of students that said they would take the class again'],
-        df_capstone_dropped_final['Average Difficulty'],
-        df_capstone_dropped_final['Received a pepper']
-    ]])
-    results=getfinalresults(X_train,y_train,X_test,y_test)
-    results_df = pd.DataFrame(results, columns=['Model', 'Alpha', 'RMSE', 'R2'])
-    plot_results(results_df)
+    feature_subsets = [
+    [
+        'Proportion of students that said they would take the class again'
+    ],
+    [
+        'Average Difficulty',
+        'Received a pepper',
+        'Proportion of students that said they would take the class again'
+    ],
+    [
+        'Average Difficulty',
+        'NumberOfRatings',
+        'Received a pepper',
+        'HighConfFemale',
+        'Proportion of online class ratings',
+        'Proportion of students that said they would take the class again'
+    ]]
 
 
-    X = np.array([
-    df_capstone_dropped_final['Proportion of students that said they would take the class again']
-    ]).T
 
-    y = np.array(df_capstone_dropped_final['AverageProfessorRating'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
+    # Your target column
+    target_col = 'AverageProfessorRating'
 
-    results=getKFresults(X_train,y_train)
+    # Split into train/test
+    df_train, df_test = train_test_split(df_capstone_dropped_final, 
+                                        test_size=0.2, 
+                                        random_state=RANDOM_SEED)
 
-    results_df2 = pd.DataFrame(results, columns=['Model', 'Betas','Alpha', 'RMSE', 'R2'])
-    results_df=results_df2.drop(columns=['Betas'])
-    plot_results(results_df)
+    # We'll store final results for each subset in a list or dictionary
+    all_subsets_results = []
 
-    mybetas=getbetas(X_train,y_train,X_test,y_test)[0] 
-    indices = np.argsort(mybetas)[::-1] 
-      
-    #print(getbetas(X_train,y_train,X_test,y_test))
-    plot_betas(getbetas(X_train,y_train,X_test,y_test)[0][1:])
-    results=getfinalresults(X_train,y_train,X_test,y_test)
-    results_df = pd.DataFrame(results, columns=['Model', 'Alpha', 'RMSE', 'R2'])
-    plot_results(results_df)
+    for idx, subset_cols in enumerate(feature_subsets, start=1):
+        print(f"--- Subset #{idx}: {subset_cols} ---")
+        
+        # 1) Create X_train, y_train, X_test, y_test
+        X_train = df_train[subset_cols].to_numpy()
+        y_train = df_train[target_col].to_numpy()
+        X_test = df_test[subset_cols].to_numpy()
+        y_test = df_test[target_col].to_numpy()
+        
+        # 2) Instantiate RegressionAnalysis for THIS subset
+        alphas = np.array([0.00001, 0.0001, 0.001, 0.01, 
+                        0.1, 1, 2, 5, 10, 20, 100, 1000, 2000, 10000])
+        
+        analysis = RegressionAnalysis(
+            X_train, y_train,
+            alphas=alphas,
+            seed=RANDOM_SEED,
+            n_splits=5  # K-folds
+        )
+        
+        
+        # 3) Cross-validate on the TRAIN set
+        analysis.cross_validate()
+        
+        analysis.plot_cv_rmse_r2()
 
-
+        # 4) Pick best alpha for Ridge and Lasso based on RMSE from CV
+        best_ridge_alpha, best_ridge_rmse = analysis.pick_best_alpha('Ridge', metric='RMSE')
+        best_lasso_alpha, best_lasso_rmse = analysis.pick_best_alpha('Lasso', metric='RMSE')
+        
+        print(f"Best Ridge alpha (subset #{idx}): {best_ridge_alpha} with mean CV-RMSE={best_ridge_rmse:.3f}")
+        print(f"Best Lasso alpha (subset #{idx}): {best_lasso_alpha} with mean CV-RMSE={best_lasso_rmse:.3f}")
+        
+        # 5) Train final models on the full TRAIN set, evaluate once on TEST
+        #    This will store results in analysis.results_test
+        analysis.finalize_and_evaluate(
+            X_train, y_train,
+            X_test,  y_test,
+            best_ridge_alpha,
+            best_lasso_alpha,
+            make_residual_plots=False  # Set to True if you want residual subplots
+        )
+        
+        final_test_df = analysis.get_test_results_df()
+        print("Final Test Results:\n", final_test_df)
+        
+        # 6) Optionally, plot coefficients for each final model
+        #    a) Normal
+        normal_row = final_test_df[final_test_df['Model'] == 'Normal'].iloc[0]
+        betas_normal = normal_row['Betas']
+        analysis.plot_coefs(
+            betas_normal[1:], 
+            feature_names=subset_cols,
+            model_name=f'Normal (Subset #{idx})'
+        )
+        
+        #    b) Best Ridge
+        ridge_row = final_test_df[
+            (final_test_df['Model'] == 'Ridge') & 
+            (final_test_df['Alpha'] == best_ridge_alpha)
+        ].iloc[0]
+        betas_ridge = ridge_row['Betas']
+        analysis.plot_coefs(
+            betas_ridge[1:], 
+            feature_names=subset_cols,
+            model_name=f'Ridge (Subset #{idx})', 
+            alpha=best_ridge_alpha
+        )
+        
+        #    c) Best Lasso
+        lasso_row = final_test_df[
+            (final_test_df['Model'] == 'Lasso') & 
+            (final_test_df['Alpha'] == best_lasso_alpha)
+        ].iloc[0]
+        betas_lasso = lasso_row['Betas']
+        analysis.plot_coefs(
+            betas_lasso[1:], 
+            feature_names=subset_cols,
+            model_name=f'Lasso (Subset #{idx})', 
+            alpha=best_lasso_alpha
+        )
+        
+        # Save or store this subset's final results for later
+        all_subsets_results.append({
+            'subset_index': idx,
+            'subset_columns': subset_cols,
+            'cv_results': analysis.get_cv_results_df(),  # Cross-validation data
+            'test_results': final_test_df                # Final test results
+        })
+        
+        print("------------------------------------------------------\n")
+        
+        print("All subsets processed and evaluated!")
+        
     print("Question 8")
-    Q8df=df_capstone[['AverageProfessorRating','NumberOfRatings']].join(tagsdf, how='inner')
-    Q8df=df_capstone[['AverageProfessorRating','NumberOfRatings']].join(tagsdf, how='inner')
+    print("------------------------------------")
+
+    # Join tags with df_capstone based on shared index
+    Q8df = df_capstone_greater_than_10_all[['AverageProfessorRating', 'NumberOfRatings']].join(tagsdf)
+    
+    # Drop rows with missing values
     Q8df.dropna(inplace=True)
-    for i in Q8df.columns[2:]:
-        Q8df[i] = Q8df[i].div(Q8df['NumberOfRatings'])
-    Q8dfgreater10=Q8df[Q8df['NumberOfRatings'] >= 10]
-    correlation_matrix = Q8dfgreater10.drop(columns=['NumberOfRatings','AverageProfessorRating']).corr()
-    plt.figure(figsize = (40,40))
-    sns.heatmap(correlation_matrix,cmap = "RdBu_r", annot=True)
-    plt.title('Correlation Matrix')
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
-    plt.savefig(f"plot_{timestamp}.png")
-    plt.close()
-    dependent_var='AverageProfessorRating'
-    scatterdepandindependent(Q8dfgreater10,dependent_var)
-    X = Q8dfgreater10.drop(columns=['AverageProfessorRating','NumberOfRatings'])  # assuming all columns except 'AverageProfessorRating' are features
+
+    # Convert tag counts to proportions by dividing each tag count by total ratings
+    for col in Q8df.columns[2:]:
+        Q8df[col] = Q8df[col].div(Q8df['NumberOfRatings'])
+
+    # Subset to rows with at least 10 ratings
+    Q8dfgreater10 = Q8df[Q8df['NumberOfRatings'] >= 10]
+    # Identify pairs of columns with correlation > 0.42
+    corr_matrix = Q8dfgreater10.corr()
+    corrgreater40 = corr_matrix[corr_matrix > 0.42]
+    high_corr_pairs = [
+        pair for pair in list(corrgreater40[corrgreater40.notnull()].stack().index)
+        if pair[0] != pair[1]
+    ]
+    print("Highly correlated pairs (corr > 0.42):", high_corr_pairs)
+
+    # Heatmap of correlations (excluding 'NumberOfRatings')
+    correlation_matrix = Q8dfgreater10.drop(columns=['NumberOfRatings']).corr()
+    plt.figure(figsize=(40, 40))
+    sns.heatmap(correlation_matrix, cmap="RdBu_r", annot=True)
+    plt.title('Correlation Matrix (Tags Only)')
+    plt.show()
+
+    # Scatter plots of each feature vs. AverageProfessorRating in a single plot with subplots
+    dependent_var = 'AverageProfessorRating'
+
+    plot_feature_vs_dependent(Q8dfgreater10, dependent_var)
+
+    # Prepare data for feature selection
+    X = Q8dfgreater10.drop(columns=['AverageProfessorRating', 'NumberOfRatings'])
     y = Q8dfgreater10['AverageProfessorRating']
-
-    # Split the data into training and test sets
+    # Train/test split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
-    # Perform forward feature selection with k-fold cross-validation
+    # Forward feature selection (K-fold CV)
     selected_features_kfold, forward_results_kfold = forward_feature_selection_kfold(X_train, y_train, k=5)
+    # Convert results to DataFrame
+    forward_results_kfold_df = pd.DataFrame(
+        forward_results_kfold,
+        columns=['Selected Features', 'Betas', 'Alpha', 'RMSE', 'R2']
+    )
+    print("\n--- Forward Feature Selection Results (K-fold CV) ---")
+    print(forward_results_kfold_df)
+    print(tagsdf)
+    print(df_capstone_greater_than_10_all)
 
-    # Convert results to a DataFrame
-    forward_results_kfold_df = pd.DataFrame(forward_results_kfold, columns=['Selected Features', 'Betas', 'Alpha', 'RMSE', 'R2'])
-
-    # Optionally, remove the 'Betas' column for cleaner display
+    # Optionally remove Betas for cleaner display
     forward_results_kfold_df_cleaned = forward_results_kfold_df.drop(columns='Betas')
 
-    # Plot the results
+    # Plot RMSE and R² vs number of features
     plot_forward_selection_results(forward_results_kfold_df_cleaned)
 
     # Evaluate the final model on the test set
     best_selected_features_kfold = forward_results_kfold_df.iloc[-1]['Selected Features']
     X_train_best_kfold = X_train[best_selected_features_kfold]
-    X_test_best_kfold = X_test[best_selected_features_kfold]
+    X_test_best_kfold  = X_test[best_selected_features_kfold]
 
     final_model_kfold = LinearRegression()
     final_model_kfold.fit(X_train_best_kfold, y_train)
     y_pred_test_kfold = final_model_kfold.predict(X_test_best_kfold)
 
     final_rmse_kfold = np.sqrt(mean_squared_error(y_test, y_pred_test_kfold))
-    final_r2_kfold = r2_score(y_test, y_pred_test_kfold)
+    final_r2_kfold   = r2_score(y_test, y_pred_test_kfold)
 
-    print(f"Final Model with K-Fold RMSE: {final_rmse_kfold}")
-    print(f"Final Model with K-Fold R²: {final_r2_kfold}")
-    print(forward_results_kfold_df)
+    print("\n----- Final Model Evaluation on Test Set -----")
+    print(f"Selected Features: {best_selected_features_kfold}")
+    print(f"Final Model RMSE: {final_rmse_kfold:.4f}")
+    print(f"Final Model R²:   {final_r2_kfold:.4f}")
 
-    X = np.array([
-    Q8dfgreater10[0],
-    Q8dfgreater10[1],
-    Q8dfgreater10[2],
-    Q8dfgreater10[3],
-    Q8dfgreater10[4],
-    Q8dfgreater10[5],
-    Q8dfgreater10[6],
-    Q8dfgreater10[7],
-    Q8dfgreater10[8],
-    Q8dfgreater10[9],
-    Q8dfgreater10[10],
-    Q8dfgreater10[11],
-    Q8dfgreater10[12],
-    Q8dfgreater10[13],
-    Q8dfgreater10[14],
-    Q8dfgreater10[15],
-    Q8dfgreater10[16],
-    Q8dfgreater10[17],
-    Q8dfgreater10[18],
-    Q8dfgreater10[19],
-    ]).T
-
-    y = np.array(Q8dfgreater10['AverageProfessorRating'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
+    forward_results_kfold_df
+        
+    feature_subsets = [
+    list(range(20)), #0 to 19 features
+    [2],#TODO Try sqrt, sq, cube etc,
+    [0, 2, 1, 15, 16, 12]
+    ]
 
 
-    results=getKFresults(X_train,y_train)
+    # Your target column
+    target_col = 'AverageProfessorRating'
 
-    results_df2 = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2'])
-    results_df = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2']).drop(columns='Betas')
-    plot_results(results_df)
-    mybetas=getbetas(X_train,y_train,X_test,y_test)[0] 
-    indices = np.argsort(mybetas)[::-1] 
-      
-    #print(getbetas(X_train,y_train,X_test,y_test))
-    plot_betas(getbetas(X_train,y_train,X_test,y_test)[0][1:],[i.name for i in [
-        Q8dfgreater10[0],
-        Q8dfgreater10[1],
-        Q8dfgreater10[2],
-        Q8dfgreater10[3],
-        Q8dfgreater10[4],
-        Q8dfgreater10[5],
-        Q8dfgreater10[6],
-        Q8dfgreater10[7],
-        Q8dfgreater10[8],
-        Q8dfgreater10[9],
-        Q8dfgreater10[10],
-        Q8dfgreater10[11],
-        Q8dfgreater10[12],
-        Q8dfgreater10[13],
-        Q8dfgreater10[14],
-        Q8dfgreater10[15],
-        Q8dfgreater10[16],
-        Q8dfgreater10[17],
-        Q8dfgreater10[18],
-        Q8dfgreater10[19],
-    ]])
-    results=getfinalresults(X_train,y_train,X_test,y_test)
-    results_df = pd.DataFrame(results, columns=['Model', 'Alpha', 'RMSE', 'R2'])
-    plot_results(results_df)
+    # We'll do a single train/test split once at the beginning
+    df_train, df_test = train_test_split(Q8dfgreater10, 
+                                        test_size=0.2, 
+                                        random_state=RANDOM_SEED)
 
-    X = np.array([
-    Q8dfgreater10[2]
-    ]).T
-    X_sqrt = np.sqrt(X)   # Square root of the column
-    X_square = np.square(X)  # Square of the column
-    X_cube = np.power(X, 3)  # Cube of the column
+    # We'll store final results for each subset in a list or dictionary
+    all_subsets_results = []
 
-    X_extended = np.hstack((X, X_sqrt, X_square, X_cube))
-    X=X_extended
-    y = np.array(Q8dfgreater10['AverageProfessorRating'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
+    for idx, subset_cols in enumerate(feature_subsets, start=1):
+        print(f"--- Subset #{idx}: {subset_cols} ---")
+        
+        # 1) Create X_train, y_train, X_test, y_test
+        X_train = df_train[subset_cols].to_numpy()
+        y_train = df_train[target_col].to_numpy()
+        X_test = df_test[subset_cols].to_numpy()
+        y_test = df_test[target_col].to_numpy()
+        
+        # 2) Instantiate RegressionAnalysis for THIS subset
+        alphas = np.array([0.00001, 0.0001, 0.001, 0.01, 
+                        0.1, 1, 2, 5, 10, 20, 100, 1000, 2000, 10000])
+        
+        analysis = RegressionAnalysis(
+            X_train, y_train,
+            alphas=alphas,
+            seed=RANDOM_SEED,
+            n_splits=5  # K-folds
+        )
+        
+        
+        # 3) Cross-validate on the TRAIN set
+        analysis.cross_validate()
+        
+        analysis.plot_cv_rmse_r2()
 
-    results=getKFresults(X_train,y_train)
+        # 4) Pick best alpha for Ridge and Lasso based on RMSE from CV
+        best_ridge_alpha, best_ridge_rmse = analysis.pick_best_alpha('Ridge', metric='RMSE')
+        best_lasso_alpha, best_lasso_rmse = analysis.pick_best_alpha('Lasso', metric='RMSE')
+        
+        print(f"Best Ridge alpha (subset #{idx}): {best_ridge_alpha} with mean CV-RMSE={best_ridge_rmse:.3f}")
+        print(f"Best Lasso alpha (subset #{idx}): {best_lasso_alpha} with mean CV-RMSE={best_lasso_rmse:.3f}")
+        
+        # 5) Train final models on the full TRAIN set, evaluate once on TEST
+        #    This will store results in analysis.results_test
+        analysis.finalize_and_evaluate(
+            X_train, y_train,
+            X_test,  y_test,
+            best_ridge_alpha,
+            best_lasso_alpha,
+            make_residual_plots=False  # Set to True if you want residual subplots
+        )
+        
+        final_test_df = analysis.get_test_results_df()
+        print("Final Test Results:\n", final_test_df)
+        
+        # 6) Optionally, plot coefficients for each final model
+        #    a) Normal
+        normal_row = final_test_df[final_test_df['Model'] == 'Normal'].iloc[0]
+        betas_normal = normal_row['Betas']
+        analysis.plot_coefs(
+            betas_normal[1:], 
+            feature_names=subset_cols,
+            model_name=f'Normal (Subset #{idx})'
+        )
+        
+        #    b) Best Ridge
+        ridge_row = final_test_df[
+            (final_test_df['Model'] == 'Ridge') & 
+            (final_test_df['Alpha'] == best_ridge_alpha)
+        ].iloc[0]
+        betas_ridge = ridge_row['Betas']
+        analysis.plot_coefs(
+            betas_ridge[1:], 
+            feature_names=subset_cols,
+            model_name=f'Ridge (Subset #{idx})', 
+            alpha=best_ridge_alpha
+        )
+        
+        #    c) Best Lasso
+        lasso_row = final_test_df[
+            (final_test_df['Model'] == 'Lasso') & 
+            (final_test_df['Alpha'] == best_lasso_alpha)
+        ].iloc[0]
+        betas_lasso = lasso_row['Betas']
+        analysis.plot_coefs(
+            betas_lasso[1:], 
+            feature_names=subset_cols,
+            model_name=f'Lasso (Subset #{idx})', 
+            alpha=best_lasso_alpha
+        )
+        
+        # Save or store this subset's final results for later
+        all_subsets_results.append({
+            'subset_index': idx,
+            'subset_columns': subset_cols,
+            'cv_results': analysis.get_cv_results_df(),  # Cross-validation data
+            'test_results': final_test_df                # Final test results
+        })
+        
+        print("------------------------------------------------------\n")
 
-    results_df2 = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2'])
-    results_df = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2']).drop(columns='Betas')
-    plot_results(results_df)
-
-    X = np.array([
-    Q8dfgreater10[0]
-    ]).T
-
-    y = np.array(Q8dfgreater10['AverageProfessorRating'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
-
-    results=getKFresults(X_train,y_train)
-
-    results_df2 = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2'])
-    results_df = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2']).drop(columns='Betas')
-    plot_results(results_df)
-    #print(getbetas(X_train,y_train,X_test,y_test))
-    X = np.array([
-    Q8dfgreater10[0],
-    Q8dfgreater10[1],
-    Q8dfgreater10[2],
-    Q8dfgreater10[15],
-    Q8dfgreater10[16],
-    Q8dfgreater10[12],
-    ]).T
-    y = np.array(Q8dfgreater10['AverageProfessorRating'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
-
-    results=getKFresults(X_train,y_train)
-
-    results_df2 = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2'])
-    results_df = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2']).drop(columns='Betas')
-    plot_results(results_df)
-
-    mybetas=getbetas(X_train,y_train,X_test,y_test)[0]
-    indices = np.argsort(mybetas)[::-1]
-    
-    #print(getbetas(X_train,y_train,X_test,y_test))
-    plot_betas(getbetas(X_train,y_train,X_test,y_test)[0][1:])
-
-    print('Question 9')
-    
-    Q9df=df_capstone[['Average Difficulty','NumberOfRatings']].join(tagsdf, how='inner')
-
+    print("All subsets processed and evaluated!")
+    print("Question 9")
+    print("------------------------------------")
+    # Prepare the data
+    Q9df = df_capstone_greater_than_10_all[['Average Difficulty', 'NumberOfRatings']].join(tagsdf, how='inner')
     Q9df.dropna(inplace=True)
 
-    for i in Q9df.columns[2:]:
-        Q9df[i] = Q9df[i].div(Q9df['NumberOfRatings'])
+    # Normalize tags by 'NumberOfRatings'
+    for column in Q9df.columns[2:]:
+        Q9df[column] = Q9df[column].div(Q9df['NumberOfRatings'])
 
-    Q9dfgreater10=Q9df[Q9df['NumberOfRatings'] >= 10]
+    # Filter rows with 'NumberOfRatings' >= 10
+    Q9dfgreater10 = Q9df[Q9df['NumberOfRatings'] >= 10]
 
+    # Correlation analysis
+    correlation_matrix = Q9dfgreater10.drop(columns=['NumberOfRatings']).corr()
+    plt.figure(figsize=(40, 40))
+    sns.heatmap(correlation_matrix, cmap="RdBu_r", annot=True)
+    plt.title('Correlation Matrix (Tags Only)')
+    plt.show()
 
-    #print(Q9dfgreater10.corr())
-    dependent_var='Average Difficulty'
-    scatterdepandindependent(Q9dfgreater10,dependent_var)
-    X = Q9dfgreater10.drop(columns=['Average Difficulty','NumberOfRatings'])  # assuming all columns except 'AverageProfessorRating' are features
+    # Generate scatter plots of features vs. 'Average Difficulty'
+    dependent_var = 'Average Difficulty'
+    plot_feature_vs_dependent(Q9dfgreater10, dependent_var)
+
+    # Prepare data for modeling
+    X = Q9dfgreater10.drop(columns=['Average Difficulty', 'NumberOfRatings'])
     y = Q9dfgreater10['Average Difficulty']
 
-    # Split the data into training and test sets
+    # Train/test split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
 
-    # Perform forward feature selection with k-fold cross-validation
+    # Forward feature selection with K-fold cross-validation
     selected_features_kfold, forward_results_kfold = forward_feature_selection_kfold(X_train, y_train, k=5)
 
-    # Convert results to a DataFrame
-    forward_results_kfold_df = pd.DataFrame(forward_results_kfold, columns=['Selected Features', 'Betas', 'Alpha', 'RMSE', 'R2'])
+    # Convert results to DataFrame for analysis
+    forward_results_kfold_df = pd.DataFrame(
+        forward_results_kfold,
+        columns=['Selected Features', 'Betas', 'Alpha', 'RMSE', 'R2']
+    )
 
-    # Optionally, remove the 'Betas' column for cleaner display
+    # Optional: Clean up the results by removing the 'Betas' column
     forward_results_kfold_df_cleaned = forward_results_kfold_df.drop(columns='Betas')
 
-    # Plot the results
+    # Plot RMSE and R² vs number of features
     plot_forward_selection_results(forward_results_kfold_df_cleaned)
 
     # Evaluate the final model on the test set
@@ -1565,468 +2128,160 @@ def main():
     final_model_kfold.fit(X_train_best_kfold, y_train)
     y_pred_test_kfold = final_model_kfold.predict(X_test_best_kfold)
 
+    # Calculate final metrics
     final_rmse_kfold = np.sqrt(mean_squared_error(y_test, y_pred_test_kfold))
     final_r2_kfold = r2_score(y_test, y_pred_test_kfold)
 
-    print(f"Final Model with K-Fold RMSE: {final_rmse_kfold}")
-    print(f"Final Model with K-Fold R²: {final_r2_kfold}")
+    # Display results
+    print("\n----- Final Model Evaluation on Test Set -----")
+    print(f"Selected Features: {best_selected_features_kfold}")
+    print(f"Final Model RMSE: {final_rmse_kfold:.4f}")
+    print(f"Final Model R²:   {final_r2_kfold:.4f}")
 
-    print(forward_results_kfold_df)
-
-    X = np.array([
-        Q9dfgreater10[0],
-        Q9dfgreater10[1],
-        Q9dfgreater10[2],
-        Q9dfgreater10[3],
-        Q9dfgreater10[4],
-        Q9dfgreater10[5],
-        Q9dfgreater10[6],
-        Q9dfgreater10[7],
-        Q9dfgreater10[8],
-        Q9dfgreater10[9],
-        Q9dfgreater10[10],
-        Q9dfgreater10[11],
-        Q9dfgreater10[12],
-        Q9dfgreater10[13],
-        Q9dfgreater10[14],
-        Q9dfgreater10[15],
-        Q9dfgreater10[16],
-        Q9dfgreater10[17],
-        Q9dfgreater10[18],
-        Q9dfgreater10[19],
-    ]).T
-
-    y = np.array(Q9dfgreater10['Average Difficulty'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
-
-
-    results=getKFresults(X_train,y_train)
-
-    results_df2 = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2'])
-    results_df = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2']).drop(columns='Betas')
-    plot_results(results_df)
-
-    mybetas=getbetaslasso(X_train,y_train,X_test,y_test)[0]
-    indices = np.argsort(mybetas)[::-1]
+    # Display feature selection results
+    forward_results_kfold_df
     
-    #print(mybetas[indices])
-    #print(getbetaslasso(X_train,y_train,X_test,y_test,alpha=1000))
-    #print(getbetas(X_train,y_train,X_test,y_test))
-    plot_betas(getbetaslasso(X_train,y_train,X_test,y_test,alpha=1000)[0][1:],[i.name for i in [
-        Q9dfgreater10[0],
-        Q9dfgreater10[1],
-        Q9dfgreater10[2],
-        Q9dfgreater10[3],
-        Q9dfgreater10[4],
-        Q9dfgreater10[5],
-        Q9dfgreater10[6],
-        Q9dfgreater10[7],
-        Q9dfgreater10[8],
-        Q9dfgreater10[9],
-        Q9dfgreater10[10],
-        Q9dfgreater10[11],
-        Q9dfgreater10[12],
-        Q9dfgreater10[13],
-        Q9dfgreater10[14],
-        Q9dfgreater10[15],
-        Q9dfgreater10[16],
-        Q9dfgreater10[17],
-        Q9dfgreater10[18],
-        Q9dfgreater10[19],
-    ]],'Lasso')
+    feature_subsets = [
+    list(range(20)), #0 to 19 features
+    [0],#TODO Try sqrt, sq, cube etc,
+    [0, 13, 6, 3, 9]
+]
 
 
-    results=getfinalresults(X_train,y_train,X_test,y_test)
-    results_df = pd.DataFrame(results, columns=['Model', 'Alpha', 'RMSE', 'R2'])
-    plot_results(results_df)
+    # Your target column
+    target_col = 'Average Difficulty'
 
-    X = np.array([
-        Q9dfgreater10[0]
-    ]).T
-    X_sqrt = np.sqrt(X)   # Square root of the column
-    X_square = np.square(X)  # Square of the column
-    X_cube = np.power(X, 3)  # Cube of the column
+    # We'll do a single train/test split once at the beginning
+    df_train, df_test = train_test_split(Q9dfgreater10, 
+                                        test_size=0.2, 
+                                        random_state=RANDOM_SEED)
 
-    X_extended = np.hstack((X, X_sqrt, X_square, X_cube))
-    X=X_extended
-    y = np.array(Q9dfgreater10['Average Difficulty'])
-    #y = np.sqrt(y)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
+    # We'll store final results for each subset in a list or dictionary
+    all_subsets_results = []
 
-    results=getKFresults(X_train,y_train)
+    for idx, subset_cols in enumerate(feature_subsets, start=1):
+        print(f"--- Subset #{idx}: {subset_cols} ---")
+        
+        # 1) Create X_train, y_train, X_test, y_test
+        X_train = df_train[subset_cols].to_numpy()
+        y_train = df_train[target_col].to_numpy()
+        X_test = df_test[subset_cols].to_numpy()
+        y_test = df_test[target_col].to_numpy()
+        
+        # 2) Instantiate RegressionAnalysis for THIS subset
+        alphas = np.array([0.00001, 0.0001, 0.001, 0.01, 
+                        0.1, 1, 2, 5, 10, 20, 100, 1000, 2000, 10000])
+        
+        analysis = RegressionAnalysis(
+            X_train, y_train,
+            alphas=alphas,
+            seed=RANDOM_SEED,
+            n_splits=5  # K-folds
+        )
+        
+        
+        # 3) Cross-validate on the TRAIN set
+        analysis.cross_validate()
+        
+        analysis.plot_cv_rmse_r2()
 
-    results_df2 = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2'])
-    results_df = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2']).drop(columns='Betas')
-    plot_results(results_df)
+        # 4) Pick best alpha for Ridge and Lasso based on RMSE from CV
+        best_ridge_alpha, best_ridge_rmse = analysis.pick_best_alpha('Ridge', metric='RMSE')
+        best_lasso_alpha, best_lasso_rmse = analysis.pick_best_alpha('Lasso', metric='RMSE')
+        
+        print(f"Best Ridge alpha (subset #{idx}): {best_ridge_alpha} with mean CV-RMSE={best_ridge_rmse:.3f}")
+        print(f"Best Lasso alpha (subset #{idx}): {best_lasso_alpha} with mean CV-RMSE={best_lasso_rmse:.3f}")
+        
+        # 5) Train final models on the full TRAIN set, evaluate once on TEST
+        #    This will store results in analysis.results_test
+        analysis.finalize_and_evaluate(
+            X_train, y_train,
+            X_test,  y_test,
+            best_ridge_alpha,
+            best_lasso_alpha,
+            make_residual_plots=False  # Set to True if you want residual subplots
+        )
+        
+        final_test_df = analysis.get_test_results_df()
+        print("Final Test Results:\n", final_test_df)
+        
+        # 6) Optionally, plot coefficients for each final model
+        #    a) Normal
+        normal_row = final_test_df[final_test_df['Model'] == 'Normal'].iloc[0]
+        betas_normal = normal_row['Betas']
+        analysis.plot_coefs(
+            betas_normal[1:], 
+            feature_names=subset_cols,
+            model_name=f'Normal (Subset #{idx})'
+        )
+        
+        #    b) Best Ridge
+        ridge_row = final_test_df[
+            (final_test_df['Model'] == 'Ridge') & 
+            (final_test_df['Alpha'] == best_ridge_alpha)
+        ].iloc[0]
+        betas_ridge = ridge_row['Betas']
+        analysis.plot_coefs(
+            betas_ridge[1:], 
+            feature_names=subset_cols,
+            model_name=f'Ridge (Subset #{idx})', 
+            alpha=best_ridge_alpha
+        )
+        
+        #    c) Best Lasso
+        lasso_row = final_test_df[
+            (final_test_df['Model'] == 'Lasso') & 
+            (final_test_df['Alpha'] == best_lasso_alpha)
+        ].iloc[0]
+        betas_lasso = lasso_row['Betas']
+        analysis.plot_coefs(
+            betas_lasso[1:], 
+            feature_names=subset_cols,
+            model_name=f'Lasso (Subset #{idx})', 
+            alpha=best_lasso_alpha
+        )
+        
+        # Save or store this subset's final results for later
+        all_subsets_results.append({
+            'subset_index': idx,
+            'subset_columns': subset_cols,
+            'cv_results': analysis.get_cv_results_df(),  # Cross-validation data
+            'test_results': final_test_df                # Final test results
+        })
+        
+        print("------------------------------------------------------\n")
 
-    results=getfinalresults(X_train,y_train,X_test,y_test)
-    results_df = pd.DataFrame(results, columns=['Model', 'Alpha', 'RMSE', 'R2'])
-    plot_results(results_df)
-
-
-    X = np.array([
-        Q9dfgreater10[0],
-        Q9dfgreater10[13],
-        Q9dfgreater10[6],
-        Q9dfgreater10[3],
-        Q9dfgreater10[9]
-    ]).T
-
-    X_sqrt = np.sqrt(X)   # Square root of the column
-
-    X_extended = np.hstack((X, X_sqrt))
-    X=X_extended
-    y = np.array(Q9dfgreater10['Average Difficulty'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
-
-    results=getKFresults(X_train,y_train)
-
-    results_df2 = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2'])
-    results_df = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2']).drop(columns='Betas')
-    plot_results(results_df)
-
-    results=getfinalresults(X_train,y_train,X_test,y_test)
-    results_df = pd.DataFrame(results, columns=['Model', 'Alpha', 'RMSE', 'R2'])
-    plot_results(results_df)
-
-    mybetas=getbetaslasso(X_train,y_train,X_test,y_test,alpha=1000)[0]
-    indices = np.argsort(mybetas)[::-1]
-    
-    #print(getbetaslasso(X_train,y_train,X_test,y_test,alpha=100))
-    plot_betas(getbetaslasso(X_train,y_train,X_test,y_test,alpha=100)[0][1:])
-
-    X = np.array([
-        Q9dfgreater10[0],
-        Q9dfgreater10[13],
-        Q9dfgreater10[6],
-        Q9dfgreater10[3],
-        Q9dfgreater10[9]
-    ]).T
-
-    y = np.array(Q9dfgreater10['Average Difficulty'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
-
-    results=getKFresults(X_train,y_train)
-
-    results_df2 = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2'])
-    results_df = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2']).drop(columns='Betas')
-    plot_results(results_df)
-
-    results=getfinalresults(X_train,y_train,X_test,y_test)
-    results_df = pd.DataFrame(results, columns=['Model', 'Alpha', 'RMSE', 'R2'])
-    plot_results(results_df)
-
-    mybetas=getbetas(X_train,y_train,X_test,y_test)[0]
-    indices = np.argsort(mybetas)[::-1]
-    
-    #print(getbetas(X_train,y_train,X_test,y_test))
-    plot_betas(getbetas(X_train,y_train,X_test,y_test)[0][1:],[i.name for i in [
-        Q9dfgreater10[0],
-        Q9dfgreater10[13],
-        Q9dfgreater10[6],
-        Q9dfgreater10[3],
-        Q9dfgreater10[9]
-    ]])
-
-    X = np.array([
-        Q9dfgreater10[0],
-    ]).T
-
-    y = np.array(Q9dfgreater10['Average Difficulty'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
-
-    results=getKFresults(X_train,y_train)
-
-    results_df2 = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2'])
-    results_df = pd.DataFrame(results, columns=['Model','Betas','Alpha', 'RMSE', 'R2']).drop(columns='Betas')
-    plot_results(results_df)
-
-    mybetas=getbetas(X_train,y_train,X_test,y_test)[0]
-    indices = np.argsort(mybetas)[::-1]
-    
-    #print(getbetas(X_train,y_train,X_test,y_test))
-    plot_betas(getbetas(X_train,y_train,X_test,y_test)[0][1:])
-
-    results=getfinalresults(X_train,y_train,X_test,y_test)
-    results_df = pd.DataFrame(results, columns=['Model', 'Alpha', 'RMSE', 'R2'])
-    plot_results(results_df)
-    
-
+    # After the loop, you can compare all_subsets_results across your feature subsets
+    print("All subsets processed and evaluated!")
     print("Question 10")
+    print("------------------------------------")
+    # 1. Instantiate the class with your dataframes (df_capstone, tagsdf)
+#    Suppose df_capstone_dropped_final = ... and tagsdf = ...
+    analysis = PepperAnalysis(df_capstone_greater_than_10, tagsdf, seed=RANDOM_SEED)
 
-    Q10df=df_capstone_greater_than_10_all.join(tagsdf, how='inner')
+    # 2. Preprocess data (merge, drop NAs, compute proportions, filter for male/female, etc.)
+    analysis.preprocess_data()
 
-    Q10df.dropna(inplace=True)
+    # 3. (Optional) Plot correlation matrix to see the big picture
+    analysis.plot_correlation_matrix()
 
-    for i in Q10df.columns[8:]:
-        Q10df[i] = Q10df[i].div(Q10df['NumberOfRatings'])
+    # 4. (Optional) Plot scatter for single variable
+    analysis.plot_scatter_single(x_col='AverageProfessorRating', y_col='Received a pepper')
 
-    Q10df=Q10df[(Q10df['HighConfMale']==1) & (Q10df['HighConfFemale']==0) | (Q10df['HighConfMale']==0) & (Q10df['HighConfFemale']==1)]
-
-    correlation_matrix = Q10df.corr()
-    plt.figure(figsize = (40,40))
-    sns.heatmap(correlation_matrix,cmap = "RdBu_r", annot=True)
-    plt.title('Correlation Matrix')
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
-    plt.savefig(f"plot_{timestamp}.png")
-    plt.close()
-    averagerating = Q10df['AverageProfessorRating']
-    receivedapepper = Q10df['Received a pepper']
-    fig, ax = plt.subplots(figsize=(10,6)) # Could also do figure and plt.() later on, but subplots are a generalization
-
-    ax.scatter(x=averagerating, y=receivedapepper, c='purple') # Purple for NYU :)
-    ax.set_title("Scatterplot of AverageProfessorRating V Received a pepper")
-    ax.set_xlabel("AverageProfessorRating (X)")
-    ax.set_ylabel("Received a pepper (Y)")
-
-    plt.tight_layout()
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
-    plt.savefig(f"plot_{timestamp}.png")
-    plt.close()
-
-    # We definitely shouldn't draw a line through this lol
-    # Logistic Regression with one independent variable
-    X = Q10df[['AverageProfessorRating']] # Double bracket for shaping (not a worry for multiple logistic regression)
-    y = Q10df['Received a pepper']
-
-    # Train-test split from scikit learn
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=RANDOM_SEED
+    # 5. Single-variable logistic regression
+    #    You can supply a threshold if you want something other than 0.5
+    analysis.logistic_regression_single_var(
+        x_col='AverageProfessorRating', 
+        y_col='Received a pepper', 
+        threshold=0.607  # or pick from ROC
     )
 
+    # 6. Multi-variable logistic regression (by default, it will drop certain columns)
+    #    Adjust threshold as needed, or see the "optimal" from the ROC curve
+    analysis.logistic_regression_multi_var(threshold=0.465)
 
-    # Fit logistic regression
-    log_reg_single = LogisticRegression()
-    log_reg_single.fit(X_train, y_train)
-
-    # Predictions
-    # Class
-    y_pred = log_reg_single.predict(X_test)
-
-    # Probabilities
-    y_prob = log_reg_single.predict_proba(X_test)[:, 1]
-
-    # Threshold?
-    # Get predictions in dataframe
-    results = pd.DataFrame({'Predictions': y_pred, 'Probabilities': y_prob})
-    print(results.tail())  # Display a few rows
-
-    print(results[results['Predictions'] == 1].min())
-    print(results[results['Predictions'] == 0].max())
-
-    THRESHOLD = 0.607 # Revisit later!
-    # THRESHOLD = optimal_threshold # from ROC curve
-    y_pred_new = (y_prob > THRESHOLD).astype(int)
-
-    # Calculate evaluation metrics
-    # Precision = TP / TP + FP
-    # Recall = TP / TP + FN
-    # F1 = 2 * P * R / (P + R) - harmonic mean, balance precision and recall
-    # Support - data pts in the class
-    # Macro metrics - average over each class
-    # Micro or weighted metrics - treat each sample the same
-
-    class_report = classification_report(y_test, y_pred_new) #y_pred_new
-    print(class_report)
-
-    # Interpret coefficients
-    print(log_reg_single.coef_)
-    # Interpret: For every increase in 1 unit of AverageProfessorRating, we expect the odds of Received a pepper relative to odds of no Received a pepper (the ratio) to increase by e^0.03
-    print(np.exp(log_reg_single.coef_[0])) # Slight boost for odds of Received a pepper
-
-    print(log_reg_single.intercept_)
-    print(np.exp(log_reg_single.intercept_)) # Not super interpretable, AverageProfessorRating wouldn't be 0. But "base" odds here.
-    # If AverageProfessorRating was 0, p / 1 -p or Received a pepper v no Received a pepper would be small odds
-
-    # Confusion Matrix
-    conf_matrix_single = confusion_matrix(y_test, y_pred) #y_pred_new
-    sns.heatmap(conf_matrix_single, annot=True, fmt="d", cmap="Blues",
-                xticklabels=["0 (Did not)", "1 (Received a pepper)"],
-                yticklabels=["0 (Did not)", "1 (Received a pepper)"])
-
-    # Add title and labels
-    plt.title("Confusion Matrix")
-    plt.xlabel("Predicted")
-    plt.ylabel("Actual")
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
-    plt.savefig(f"plot_{timestamp}.png")
-    plt.close()
-    # What do you think doc?
-
-    # Visualize the curve
-    # Extract coefficients
-    beta1 = log_reg_single.coef_[0][0]
-    intercept = log_reg_single.intercept_[0]
-
-    # Apply over training data
-    x_vals = np.linspace(X_train.min(), X_train.max(), 100)
-
-    # Logistic reg formula
-    y_vals = 1 / (1 + np.exp(-(beta1 * x_vals + intercept)))
-    plt.plot(x_vals, y_vals, label="Sigmoid Curve")
-
-    # Add threshold line
-    threshold = THRESHOLD
-    threshold_x = (np.log(threshold / (1 - threshold)) - intercept) / beta1  # Solve for x when sigmoid(x) = threshold
-    plt.axvline(threshold_x, color='red', linestyle='--', label=f'Threshold at AverageProfessorRating = {threshold_x:.2f}')
-    plt.title("Visualizing the Curve")
-    plt.xlabel("AverageProfessorRating")
-    plt.ylabel("Probability of Received a pepper")
-    plt.legend()
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
-    plt.savefig(f"plot_{timestamp}.png")
-    plt.close()
-
-    # ROC Curve, get AUC
-    fpr, tpr, thresholds = roc_curve(y_test, y_prob)
-    roc_auc = auc(fpr, tpr)
-    plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
-    plt.plot([0, 1], [0, 1], linestyle='--', color='gray')
-    plt.title("ROC Curve")
-    plt.xlabel("False Positive Rate (1 - Specificity)")
-    plt.ylabel("True Positive Rate (Sensitivity)")
-    plt.legend()
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
-    plt.savefig(f"plot_{timestamp}.png")
-    plt.close()
-
-    # Try to find optimal threshold for fitting
-    optimal_threshold_index = np.argmax(tpr - fpr)
-    optimal_threshold = thresholds[optimal_threshold_index]
-    print(optimal_threshold)
-
-    # List of chosen thresholds
-    chosen_thresholds = [0.607]
-
-    # Plot ROC Curve
-    plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
-
-    # Loop over each threshold
-    for chosen_threshold in chosen_thresholds:
-        # Find index of the threshold closest to the chosen one
-        threshold_index = (np.abs(thresholds - chosen_threshold)).argmin()
-
-        # Get the corresponding FPR and TPR for the chosen threshold
-        fpr_at_threshold = fpr[threshold_index]
-        tpr_at_threshold = tpr[threshold_index]
-
-        # Plot the chosen threshold point on the ROC curve
-        plt.scatter(fpr_at_threshold, tpr_at_threshold, label=f"Threshold = {chosen_threshold}", zorder=5)
-
-    # Add title, labels, and legend
-    plt.title("ROC Curve")
-    plt.xlabel("False Positive Rate (1 - Specificity)")
-    plt.ylabel("True Positive Rate (Sensitivity)")
-    plt.legend()
-
-    # Show plot
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
-    plt.savefig(f"plot_{timestamp}.png")
-    plt.close()
-
-    
-    X = Q10df.drop(columns=['Received a pepper','NumberOfRatings','Number of ratings coming from online classes','HighConfMale','HighConfFemale',4,8,9,17,18])  # assuming all columns except 'AverageProfessorRating' are features
-    X.columns =X.columns.astype(str)
-    # Multiple
-    # Apply min-max scaling to get variables on same scale
-    scaler = MinMaxScaler()
-    X = scaler.fit_transform(X) # Row-wise
-
-    # Logistic Regression with One Explanatory Variable
-    y = Q10df['Received a pepper']
-
-    # Train-test split
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=RANDOM_SEED
-    )
-
-
-    # Fit logistic regression
-    log_reg = LogisticRegression()
-    log_reg.fit(X_train, y_train)
-
-    # Predictions
-    y_pred = log_reg.predict(X_test)
-    y_prob = log_reg.predict_proba(X_test)[:, 1]
-
-    # Efficiently create and display the DataFrame
-    results = pd.DataFrame({'Predictions': y_pred, 'Probabilities': y_prob})
-    print(results.tail())  # Display a few rows
-
-    print(results[results['Predictions'] == 1].min())
-    print(results[results['Predictions'] == 0].max())
-
-    THRESHOLD = 0.465 # Revisit later!
-    # THRESHOLD = optimal_threshold
-    y_pred_new = (y_prob > THRESHOLD).astype(int)
-
-    class_report = classification_report(y_test, y_pred_new) #y_pred_new
-    print(class_report)
-
-    print(log_reg.coef_)
-    print(np.exp(log_reg.coef_)) # These are huge. But careful, we scaled our X variables (between 0 and 1). Still interpretable over fractional units.
-
-    print(log_reg.intercept_)
-    print(np.exp(log_reg.intercept_))
-
-    # Confusion Matrix
-    conf_matrix = confusion_matrix(y_test, y_pred) #y_pred_new
-    sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues",
-                xticklabels=["0 (No Pepper)", "1 (Pepper)"],
-                yticklabels=["0 (No Pepper)", "1 (Pepper)"])
-
-    plt.title("Confusion Matrix")
-    plt.xlabel("Predicted")
-    plt.ylabel("Actual")
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
-    plt.savefig(f"plot_{timestamp}.png")
-    plt.close()
-
-    fpr, tpr, thresholds = roc_curve(y_test, y_prob)
-    roc_auc = auc(fpr, tpr)
-    plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
-    plt.plot([0, 1], [0, 1], linestyle='--', color='gray')
-    plt.title("ROC Curve")
-    plt.xlabel("False Positive Rate (1 - Specificity)")
-    plt.ylabel("True Positive Rate (Sensitivity)")
-    plt.legend()
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
-    plt.savefig(f"plot_{timestamp}.png")
-    plt.close()
-
-    optimal_threshold_index = np.argmax(tpr - fpr)
-    optimal_threshold = thresholds[optimal_threshold_index]
-    print(optimal_threshold)
-
-    # List of chosen thresholds
-    chosen_thresholds = [0.488]
-
-    # Plot ROC Curve
-    plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
-
-    # Loop over each threshold
-    for chosen_threshold in chosen_thresholds:
-        # Find index of the threshold closest to the chosen one
-        threshold_index = (np.abs(thresholds - chosen_threshold)).argmin()
-
-        # Get the corresponding FPR and TPR for the chosen threshold
-        fpr_at_threshold = fpr[threshold_index]
-        tpr_at_threshold = tpr[threshold_index]
-
-        # Plot the chosen threshold point on the ROC curve
-        plt.scatter(fpr_at_threshold, tpr_at_threshold, label=f"Threshold = {chosen_threshold}", zorder=5)
-
-    # Add title, labels, and legend
-    plt.title("ROC Curve")
-    plt.xlabel("False Positive Rate (1 - Specificity)")
-    plt.ylabel("True Positive Rate (Sensitivity)")
-    plt.legend()
-
-    # Show plot
-    # Display the result
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
-    plt.savefig(f"plot_{timestamp}.png")
-    plt.close()
+    # 7. Train a linear SVM for comparison
+    analysis.train_svm()
     
     print('-----------------------------------------------------------------------------------------------------------------')
     print('Question 11')
