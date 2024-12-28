@@ -1,7 +1,6 @@
 # Importing libraries
 import pandas as pd
 import numpy as np
-import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
@@ -22,6 +21,8 @@ from sklearn.metrics import (
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 
+
+#import matplotlib
 #matplotlib.use('Agg') # Use the 'Agg' backend, which is non-interactive
 
 # Seed value for random number generators to obtain reproducible results
@@ -35,7 +36,7 @@ pd.options.mode.chained_assignment = None  # default='warn'
 
 def visualize_density_plot(df1, df2, column, str1, str2, df3 = None, str3 = None, nbins = 30):
     # Plot the histogram of the AverageProfessorRating for professors with more than 10 ratings for women and men separately
-    plt.figure(figsize=(10, 6))
+    myfig=plt.figure(figsize=(10, 6))
 
     sns.histplot(df1[column], bins=nbins, kde=True, color='blue', label=f'{column} for {str1}', stat='density')
     sns.histplot(df2[column], bins=nbins, kde=True, color='red', label=f'{column} for {str2}', stat='density')
@@ -48,7 +49,7 @@ def visualize_density_plot(df1, df2, column, str1, str2, df3 = None, str3 = None
     plt.xlabel(f'{column}') 
     plt.ylabel('Density')
     plt.legend()
-    plt.show()
+    return myfig
 
 
 def perform_ks_mw_test(df1, df2, column, str1, str2):
@@ -109,7 +110,7 @@ def visualize_95_ci(df, column, str1):
     print(f'95% Confidence Interval for {str1} Professors: [{ci_lower}, {ci_upper}]')
 
     # Plot the 95% confidence interval
-    plt.figure(figsize=(10, 6))
+    myfig=plt.figure(figsize=(10, 6))
     sns.histplot(df['AverageProfessorRating'], bins=30, kde=True, color='blue', label=f'{column}')
     plt.axvline(ci_lower, color='red', linestyle='--', label=f'Lower CI: {ci_lower:.2f}')
     plt.axvline(df['AverageProfessorRating'].mean(), color='black', linestyle='-', label=f'Mean: {df["AverageProfessorRating"].mean():.2f}')
@@ -118,7 +119,7 @@ def visualize_95_ci(df, column, str1):
     plt.xlabel('AverageProfessorRating')
     plt.ylabel('Density')
     plt.legend()
-    plt.show()
+    return myfig
 
 def effect_size(df1, df2, column):
     mean_diff = df1[column].mean() - df2[column].mean()
@@ -154,7 +155,7 @@ def visualize_95_ci_effect_size(df1, df2, column, str1, str2):
     print(f'95% Confidence Interval for the Effect Size: [{lower_bound}, {upper_bound}]')
 
     # Plot the bootstrap distribution of effect sizes
-    plt.figure(figsize=(10, 6))
+    myfig=plt.figure(figsize=(10, 6))
     sns.histplot(bootstrapped_effect_sizes, bins=30, kde=True)
     plt.axvline(lower_bound, color='red', linestyle='--', label=f'Lower Bound: {lower_bound:.3f}')
     plt.axvline(np.mean(bootstrapped_effect_sizes), color='black', linestyle='-', label=f'Mean: {np.mean(bootstrapped_effect_sizes):.3f}')
@@ -163,7 +164,7 @@ def visualize_95_ci_effect_size(df1, df2, column, str1, str2):
     plt.xlabel('Effect Size')
     plt.ylabel('Frequency')
     plt.legend()
-    plt.show()
+    return myfig
 
 def create_p_vals_df(df1):
     # For each of the tags, calculate the p-value of the gender bias using Mann-Whitney U test and the KS test and store the results in a dataframe
@@ -199,7 +200,7 @@ def visualize_p_vals(p_vals_df, str1):
     ax.set_title('P-values of Mann-Whitney U Test vs. KS Test for Each Tag')
     ax.set_xlabel('Mann-Whitney U p-value')
     ax.set_ylabel('KS test p-value')
-    plt.show()
+    return fig
 
 def print_pvals(p_vals_df):
 
@@ -704,7 +705,7 @@ def plot_feature_vs_dependent(df, dependent_var):
     n_rows = -(-n_features // n_cols) # Ceiling division
     
     # Set figure size based on rows and columns
-    plt.figure(figsize=(20, 5 * n_rows))
+    myfig=plt.figure(figsize=(20, 5 * n_rows))
 
     # Create a scatterplot for each feature
     for idx, feature in enumerate(features, start=1):
@@ -717,7 +718,7 @@ def plot_feature_vs_dependent(df, dependent_var):
 
     # Adjust layout to avoid overlap
     plt.tight_layout()
-    plt.show()
+    return myfig
 
 # Forward Feature Selection
 
@@ -725,7 +726,7 @@ def plot_forward_selection_results(results_df):
     """
     Plots RMSE and R² over the number of features selected.
     """
-    plt.figure(figsize=(12, 6))
+    myfig=plt.figure(figsize=(12, 6))
 
     # RMSE plot
     plt.subplot(1, 2, 1)
@@ -744,7 +745,7 @@ def plot_forward_selection_results(results_df):
     plt.grid(True)
 
     plt.tight_layout()
-    plt.show()
+    return myfig
 
 
 def forward_feature_selection_kfold(X, y, k=5, max_features=None):
@@ -1033,7 +1034,7 @@ class RegressionAnalysis:
             axs[1, 2].set_title("Lasso Residual Histogram")
 
             plt.tight_layout()
-            plt.show()
+            return fig
 
     def get_test_results_df(self):
         """Return final test results as a DataFrame."""
@@ -1052,7 +1053,7 @@ class RegressionAnalysis:
         lasso_subset = df_agg[df_agg['Model'] == 'Lasso']
 
         # RMSE plot
-        plt.figure(figsize=(10,6))
+        myfig=plt.figure(figsize=(10,6))
         plt.xscale('log')
 
         plt.plot(ridge_subset['Alpha'], ridge_subset['RMSE'], marker='o', label='Ridge RMSE')
@@ -1066,10 +1067,9 @@ class RegressionAnalysis:
         plt.ylabel('RMSE')
         plt.legend()
         plt.grid(True)
-        plt.show()
 
         # R2 plot
-        plt.figure(figsize=(10,6))
+        myfig2=plt.figure(figsize=(10,6))
         plt.xscale('log')
 
         plt.plot(ridge_subset['Alpha'], ridge_subset['R2'], marker='o', label='Ridge R2')
@@ -1083,14 +1083,14 @@ class RegressionAnalysis:
         plt.ylabel('R2')
         plt.legend()
         plt.grid(True)
-        plt.show()
+        return myfig,myfig2
     
     def plot_coefs(self, betas, feature_names=None, model_name='Normal', alpha=None):
 
         if feature_names is None:
             feature_names = [f"x{i}" for i in range(len(betas))]
         
-        plt.figure(figsize=(10, 6))
+        myfig=plt.figure(figsize=(10, 6))
         plt.bar(feature_names, betas)
         
         if model_name == 'Normal':
@@ -1105,7 +1105,7 @@ class RegressionAnalysis:
         plt.ylabel("Coefficient Value")
         plt.xticks(rotation=45, ha='right')
         plt.tight_layout()
-        plt.show()
+        return myfig
 
 class PepperAnalysis:
     def __init__(
@@ -1162,10 +1162,10 @@ class PepperAnalysis:
             raise ValueError("Data not preprocessed yet. Call preprocess_data() first.")
         
         correlation_matrix = self.df.corr()
-        plt.figure(figsize=(40, 40))
+        myfig=plt.figure(figsize=(40, 40))
         sns.heatmap(correlation_matrix, cmap="RdBu_r", annot=True)
         plt.title("Correlation Matrix")
-        plt.show()
+        return myfig
 
     def plot_scatter_single(self, x_col='Average Rating', y_col='Received a pepper'):
         """
@@ -1184,7 +1184,7 @@ class PepperAnalysis:
         ax.set_xlabel(x_col)
         ax.set_ylabel(y_col)
         plt.tight_layout()
-        plt.show()
+        return fig
 
     def logistic_regression_single_var(self, x_col='Average Rating', y_col='Received a pepper', threshold=0.5):
         """
@@ -1230,49 +1230,52 @@ class PepperAnalysis:
 
         # Confusion Matrix
         conf_matrix_single = confusion_matrix(y_test, y_pred_new)
+        fig1, ax1 = plt.subplots(figsize=(10, 6))
         sns.heatmap(
             conf_matrix_single, annot=True, fmt="d", cmap="Blues",
             xticklabels=["0 (No Pepper)", "1 (Pepper)"],
             yticklabels=["0 (No Pepper)", "1 (Pepper)"]
         )
-        plt.title("Confusion Matrix (Single-Var Logistic)")
-        plt.xlabel("Predicted")
-        plt.ylabel("Actual")
-        plt.show()
+        ax1.set_title("Confusion Matrix (Single-Var Logistic)")
+        ax1.set_xlabel("Predicted")
+        ax1.set_ylabel("Actual")
 
         # Plot the Sigmoid curve
+        fig2, ax2 = plt.subplots(figsize=(10, 6))
         x_array = np.linspace(X_train.min()[0], X_train.max()[0], 100)
         # logistic function
         sig = 1 / (1 + np.exp(-(beta1 * x_array + intercept)))
-        plt.plot(x_array, sig, label="Sigmoid Curve")
+        ax2.plot(x_array, sig, label="Sigmoid Curve")
 
         # Mark the threshold point
         # Solve for x when sigmoid = threshold => x = [ln(threshold/(1-threshold)) - intercept]/beta1
         threshold_x = (np.log(threshold / (1 - threshold)) - intercept) / beta1
-        plt.axvline(threshold_x, color='red', linestyle='--',
+        ax2.axvline(threshold_x, color='red', linestyle='--',
                     label=f'Threshold at x={threshold_x:.2f}')
 
-        plt.title("Single-Var Logistic Sigmoid Curve")
-        plt.xlabel(x_col)
-        plt.ylabel("Probability of Pepper (y=1)")
-        plt.legend()
+        ax2.set_title("Single-Var Logistic Sigmoid Curve")
+        ax2.set_xlabel(x_col)
+        ax2.set_ylabel("Probability of Pepper (y=1)")
+        ax2.legend()
         plt.show()
 
         # ROC Curve
+        fig3, ax3 = plt.subplots(figsize=(10, 6))
         fpr, tpr, thresholds = roc_curve(y_test, y_prob)
         roc_auc = auc(fpr, tpr)
-        plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
-        plt.plot([0, 1], [0, 1], linestyle='--', color='gray')
-        plt.title("ROC Curve (Single-Var Logistic)")
-        plt.xlabel("False Positive Rate (1 - Specificity)")
-        plt.ylabel("True Positive Rate (Sensitivity)")
-        plt.legend()
+        ax3.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
+        ax3.plot([0, 1], [0, 1], linestyle='--', color='gray')
+        ax3.set_title("ROC Curve (Single-Var Logistic)")
+        ax3.set_xlabel("False Positive Rate (1 - Specificity)")
+        ax3.set_ylabel("True Positive Rate (Sensitivity)")
+        ax3.legend()
         plt.show()
 
         # If you want the "optimal threshold" from Youden's J statistic (tpr - fpr)
         optimal_threshold_index = np.argmax(tpr - fpr)
         optimal_threshold = thresholds[optimal_threshold_index]
         print(f"Optimal Threshold (Youden's J): {optimal_threshold:.3f}")
+        return fig1,fig2,fig3
 
     def logistic_regression_multi_var(self, drop_cols=None, threshold=0.5):
         """
@@ -1336,31 +1339,34 @@ class PepperAnalysis:
 
         # Confusion matrix
         conf_matrix = confusion_matrix(y_test, y_pred_new)
+        fig1, ax = plt.subplots(figsize=(10, 6))
         sns.heatmap(
             conf_matrix, annot=True, fmt="d", cmap="Blues",
             xticklabels=["0 (No Pepper)", "1 (Pepper)"],
             yticklabels=["0 (No Pepper)", "1 (Pepper)"]
         )
-        plt.title("Confusion Matrix (Multi-Var Logistic)")
-        plt.xlabel("Predicted")
-        plt.ylabel("Actual")
+        ax.set_title("Confusion Matrix (Multi-Var Logistic)")
+        ax.set_xlabel("Predicted")
+        ax.set_ylabel("Actual")
         plt.show()
 
         # ROC Curve
+        fig2, ax2 = plt.subplots(figsize=(10, 6))
         fpr, tpr, thresholds = roc_curve(y_test, y_prob)
         roc_auc = auc(fpr, tpr)
-        plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
-        plt.plot([0, 1], [0, 1], linestyle='--', color='gray')
-        plt.title("ROC Curve (Multi-Var Logistic)")
-        plt.xlabel("False Positive Rate (1 - Specificity)")
-        plt.ylabel("True Positive Rate (Sensitivity)")
-        plt.legend()
+        ax2.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
+        ax2.plot([0, 1], [0, 1], linestyle='--', color='gray')
+        ax2.set_title("ROC Curve (Multi-Var Logistic)")
+        ax2.set_xlabel("False Positive Rate (1 - Specificity)")
+        ax2.set_ylabel("True Positive Rate (Sensitivity)")
+        ax2.legend()
         plt.show()
 
         # If you want the "optimal threshold" from Youden's J statistic
         optimal_threshold_index = np.argmax(tpr - fpr)
         optimal_threshold = thresholds[optimal_threshold_index]
         print(f"Optimal Threshold (Youden's J) for multi-var logistic: {optimal_threshold:.3f}")
+        return fig1, fig2
 
     def train_svm(self, drop_cols=None):
         """
@@ -1406,10 +1412,11 @@ class PepperAnalysis:
         # ROC curve
         fpr, tpr, thresholds = roc_curve(y_test, y_prob)
         roc_auc = auc(fpr, tpr)
-        plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
-        plt.plot([0, 1], [0, 1], linestyle='--', color='gray')
-        plt.title("ROC Curve (SVM)")
-        plt.xlabel("False Positive Rate (1 - Specificity)")
-        plt.ylabel("True Positive Rate (Sensitivity)")
-        plt.legend()
-        plt.show()
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
+        ax.plot([0, 1], [0, 1], linestyle='--', color='gray')
+        ax.set_title("ROC Curve (SVM)")
+        ax.set_xlabel("False Positive Rate (1 - Specificity)")
+        ax.set_ylabel("True Positive Rate (Sensitivity)")
+        ax.legend()
+        return fig

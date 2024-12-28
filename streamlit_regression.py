@@ -31,8 +31,8 @@ def main():
 
     if uploaded_file_capstone is not None and uploaded_file_tagsdf is not None:
         # Read data into DataFrames
-        df_capstone = pd.read_csv('./rmpCapstoneNum.csv', header=0)
-        tagsdf=pd.read_csv('./rmpCapstoneTags.csv', header=0)
+        df_capstone = pd.read_csv(uploaded_file_capstone)
+        tagsdf = pd.read_csv(uploaded_file_tagsdf)
         df_capstone.columns = ['AverageProfessorRating', 'Average Difficulty', 'NumberOfRatings', 'Received a pepper', 
                         'Proportion of students that said they would take the class again', 
                         'Number of ratings coming from online classes', 'HighConfMale', 'HighConfFemale']
@@ -110,94 +110,105 @@ def main():
         # 3) Run RegressionAnalysis on Different Feature Subsets
         # --------------------------------------------------------------
         st.subheader("RegressionAnalysis on Subsets")
-        if st.button("Run Subset RegressionAnalysis"):
-            analysis = PepperAnalysis(df_capstone, tagsdf, seed=42)
+        # Display checklist for feature selection
+        analysis = PepperAnalysis(df_capstone, tagsdf, seed=42)
+        analysis.preprocess_data()
 
-            # 2.2 Preprocess
-            analysis.preprocess_data()
-            # Let’s define some subsets (example only)
-            feature_subsets = [
-                ['AverageProfessorRating'],
-                ['NumberOfRatings', 'HighConfFemale'],
-                ['AverageProfessorRating', 'NumberOfRatings', 'HighConfFemale'],
-            ]
-            target_col = 'AverageProfessorRating'
-
-            # Train-test split
-            from sklearn.model_selection import train_test_split
-            df_train, df_test = train_test_split(analysis.df, test_size=0.2, random_state=42)
-
-            all_subsets_results = []
-            for idx, subset_cols in enumerate(feature_subsets, start=1):
-                st.write(f"**Subset #{idx}:** {subset_cols}")
-
-                # 3.1 Prepare X_train, y_train, X_test, y_test
-                X_train = df_train[subset_cols].to_numpy()
-                y_train = df_train[target_col].to_numpy()
-                X_test = df_test[subset_cols].to_numpy()
-                y_test = df_test[target_col].to_numpy()
-
-                # 3.2 Instantiate RegressionAnalysis
-                alphas = np.array([0.00001, 0.0001, 0.001, 0.01, 
-                                   0.1, 1, 2, 5, 10, 20, 100, 1000])
-                
-                reg_analysis = RegressionAnalysis(
-                    X_train, y_train,
-                    alphas=alphas,
-                    seed=42,
-                    n_splits=5
-                )
-
-                # 3.3 Cross-validate
-                reg_analysis.cross_validate()
-
-                # 3.4 Plot CV results
-                st.write("**Cross-Validation Performance**")
-                fig_cv = plt.figure(figsize=(12, 5))
-                reg_analysis.plot_cv_rmse_r2()  # This method likely shows plots directly
-                st.pyplot(fig_cv)
-
-                # 3.5 Pick best alphas
-                best_ridge_alpha, best_ridge_rmse = reg_analysis.pick_best_alpha('Ridge', metric='RMSE')
-                best_lasso_alpha, best_lasso_rmse = reg_analysis.pick_best_alpha('Lasso', metric='RMSE')
-                st.write(f"Best Ridge alpha: {best_ridge_alpha} (CV RMSE={best_ridge_rmse:.3f})")
-                st.write(f"Best Lasso alpha: {best_lasso_alpha} (CV RMSE={best_lasso_rmse:.3f})")
-
-                # 3.6 Finalize & Evaluate
-                reg_analysis.finalize_and_evaluate(
-                    X_train, y_train,
-                    X_test, y_test,
-                    best_ridge_alpha,
-                    best_lasso_alpha,
-                    make_residual_plots=False
-                )
-
-                final_test_df = reg_analysis.get_test_results_df()
-                st.write("Final Test Results:")
-                st.dataframe(final_test_df)
-
-                # Optionally plot coefficients
-                # Example: Normal
-                normal_row = final_test_df[final_test_df['Model'] == 'Normal'].iloc[0]
-                betas_normal = normal_row['Betas']
-                st.write("**Normal Coefficients**")
-                fig_coefs = plt.figure(figsize=(8, 4))
-                reg_analysis.plot_coefs(
-                    betas_normal[1:], 
-                    feature_names=subset_cols,
-                    model_name=f'Normal (Subset #{idx})'
-                )
-                st.pyplot(fig_coefs)
-
-                # ... similarly for best Ridge/Lasso
-
-                all_subsets_results.append({
-                    'subset_index': idx,
-                    'subset_columns': subset_cols,
-                    'test_results': final_test_df
-                })
+        target_col = 'AverageProfessorRating'
+        all_features = [col for col in analysis.df.columns if col != target_col and not col.isdigit()]
+         # Streamlit interface
+        st.title("Feature Selection for Linear Regression")
+        selected_features = st.multiselect(
+            "Select features for the regression model:", 
+            options=all_features, 
+            default=all_features  # Preselect all by default
+        )
             
-            st.success("All subsets processed!")
+        if st.button("Run Subset RegressionAnalysis"):
+
+            if not selected_features:
+                st.warning("Please select at least one feature to proceed!")
+            else:
+                st.write(f"Selected Features: {selected_features}")
+                # Train-test split
+                from sklearn.model_selection import train_test_split
+                df_train, df_test = train_test_split(analysis.df, test_size=0.2, random_state=42)
+
+                all_subsets_results = []
+                feature_subsets=[selected_features]
+                for idx, subset_cols in enumerate(feature_subsets, start=1):
+                    st.write(f"**Subset #{idx}:** {subset_cols}")
+
+                    # 3.1 Prepare X_train, y_train, X_test, y_test
+                    X_train = df_train[subset_cols].to_numpy()
+                    y_train = df_train[target_col].to_numpy()
+                    X_test = df_test[subset_cols].to_numpy()
+                    y_test = df_test[target_col].to_numpy()
+
+                    # 3.2 Instantiate RegressionAnalysis
+                    alphas = np.array([0.00001, 0.0001, 0.001, 0.01, 
+                                    0.1, 1, 2, 5, 10, 20, 100, 1000])
+                    
+                    reg_analysis = RegressionAnalysis(
+                        X_train, y_train,
+                        alphas=alphas,
+                        seed=42,
+                        n_splits=5
+                    )
+
+                    # 3.3 Cross-validate
+                    reg_analysis.cross_validate()
+                    mydf=reg_analysis.get_cv_results_df()
+                    st.dataframe(mydf.head(5))
+
+                    # 3.4 Plot CV results
+                    st.write("**Cross-Validation Performance**")
+                    #fig_cv = plt.figure(figsize=(12, 5))
+                    fig_cv,fig_cv2=reg_analysis.plot_cv_rmse_r2()  # This method likely shows plots directly
+                    st.pyplot(fig_cv)
+                    st.pyplot(fig_cv2)
+
+                    # 3.5 Pick best alphas
+                    best_ridge_alpha, best_ridge_rmse = reg_analysis.pick_best_alpha('Ridge', metric='RMSE')
+                    best_lasso_alpha, best_lasso_rmse = reg_analysis.pick_best_alpha('Lasso', metric='RMSE')
+                    st.write(f"Best Ridge alpha: {best_ridge_alpha} (CV RMSE={best_ridge_rmse:.3f})")
+                    st.write(f"Best Lasso alpha: {best_lasso_alpha} (CV RMSE={best_lasso_rmse:.3f})")
+
+                    # 3.6 Finalize & Evaluate
+                    residualplot=reg_analysis.finalize_and_evaluate(
+                        X_train, y_train,
+                        X_test, y_test,
+                        best_ridge_alpha,
+                        best_lasso_alpha,
+                        make_residual_plots=True
+                    )
+                    st.pyplot(residualplot)
+
+                    final_test_df = reg_analysis.get_test_results_df()
+                    st.write("Final Test Results:")
+                    st.dataframe(final_test_df)
+
+                    # Optionally plot coefficients
+                    # Example: Normal
+                    normal_row = final_test_df[final_test_df['Model'] == 'Normal'].iloc[0]
+                    betas_normal = normal_row['Betas']
+                    st.write("**Normal Coefficients**")
+                    coefplot=reg_analysis.plot_coefs(
+                        betas_normal[1:], 
+                        feature_names=subset_cols,
+                        model_name=f'Normal (Subset #{idx})'
+                    )
+                    st.pyplot(coefplot)
+
+                    # ... similarly for best Ridge/Lasso
+
+                    all_subsets_results.append({
+                        'subset_index': idx,
+                        'subset_columns': subset_cols,
+                        'test_results': final_test_df
+                    })
+                
+                st.success("Subset processed!")
 
     else:
         st.warning("Please upload both data files to proceed.")
