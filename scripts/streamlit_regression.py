@@ -3,12 +3,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-# Import *only* the classes and functions you need from another file.
-# For example, if you have a file called "analysis_utils.py" that defines:
-#   - PepperAnalysis
-#   - RegressionAnalysis
-#   - plot_feature_vs_dependent
-# ...then import them here:
 from analysis_utils import PepperAnalysis, RegressionAnalysis, plot_feature_vs_dependent
 
 
@@ -21,11 +15,11 @@ def main():
     st.subheader("Upload Your Datasets")
 
     uploaded_file_capstone = st.file_uploader(
-        "Upload the main capstone CSV (e.g. df_capstone) here", 
+        "Upload the main capstone CSV (e.g. rmpCapstoneNum) here", 
         type=["csv"]
     )
     uploaded_file_tagsdf = st.file_uploader(
-        "Upload the tags CSV (e.g. tagsdf) here", 
+        "Upload the tags CSV (e.g. rmpCapstoneTags) here", 
         type=["csv"]
     )
 
@@ -38,17 +32,25 @@ def main():
                         'Number of ratings coming from online classes', 'HighConfMale', 'HighConfFemale']
         tagsdf.columns = list(range(20))
 
-        st.write("**Preview of df_capstone:**")
+        st.write("**Preview of capstone:**")
         st.dataframe(df_capstone.head(5))
 
-        st.write("**Preview of tagsdf:**")
+        st.write("**Preview of tags:**")
         st.dataframe(tagsdf.head(5))
 
         # --------------------------------------------------------------
         # 2) Run Pepper Analysis
         # --------------------------------------------------------------
         st.subheader("Pepper Analysis (Logistic & SVM)")
-        if st.button("Run Pepper Analysis"):
+        if 'clicked' not in st.session_state:
+            st.session_state.clicked = False
+
+        def click_button():
+            st.session_state.clicked = True
+
+        st.button("Run Pepper Analysis",on_click=click_button)
+        if st.session_state.clicked:
+
             # 2.1 Create the PepperAnalysis instance
             analysis = PepperAnalysis(df_capstone, tagsdf, seed=42)
 
@@ -83,28 +85,49 @@ def main():
 
             # 2.5 Single-variable Logistic Regression
             st.write("**Single-variable Logistic Regression**")
-            with st.spinner("Running single-var logistic regression..."):
-                # This method may print results to stdout, which Streamlit won't capture automatically.
-                # You can either let it print to your console,
-                # or refactor the method to return values that you display with st.write().
-                analysis.logistic_regression_single_var(
-                    x_col='AverageProfessorRating',
-                    y_col='Received a pepper',
-                    threshold=0.607
-                )
-            st.success("Single-variable logistic regression complete!")
+            target_col = 'Received a pepper'
+            all_features = [col for col in analysis.df.columns if col != target_col and not col.isdigit()]
+            selected_feature = st.selectbox(
+                "Select features for the regression model:", 
+                options=all_features)
+            if st.button("Run Single Feature Logistic Regression"):
+                
+                with st.spinner("Running single-var logistic regression..."):
+                    fig1,fig2,fig3=analysis.logistic_regression_single_var(
+                        x_col=selected_feature,
+                        y_col='Received a pepper',
+                        threshold=0.607
+                    )
+                st.pyplot(fig1)
+                st.pyplot(fig2)
+                st.pyplot(fig3)
 
             # 2.6 Multi-variable logistic regression
-            st.write("**Multi-variable Logistic Regression**")
-            with st.spinner("Running multi-var logistic regression..."):
-                analysis.logistic_regression_multi_var(threshold=0.465)
-            st.success("Multi-variable logistic regression complete!")
+            selected_features = st.multiselect(
+                "Select features for the regression model:", 
+                options=all_features, 
+                default=all_features,key='2'  # Preselect all by default
+            )
+            if st.button("Run Multi Feature Logistic Regression"):
+                
+                drop_cols=set(analysis.df.columns) - set(selected_features)
+                with st.spinner("Running multi-var logistic regression..."):
+                    fig1,fig2=analysis.logistic_regression_multi_var(threshold=0.465,drop_cols=list(drop_cols))
+                st.pyplot(fig1)
+                st.pyplot(fig2)
 
             # 2.7 Train a linear SVM
-            st.write("**Train a linear SVM**")
-            with st.spinner("Training SVM..."):
-                analysis.train_svm()
-            st.success("SVM training complete!")
+            selected_features_SVM = st.multiselect(
+                "Select features for the regression model:", 
+                options=all_features, 
+                default=all_features, key='1'  # Preselect all by default
+            )
+            if st.button("Run Multi Feature SVM"):
+                
+                drop_cols=set(analysis.df.columns) - set(selected_features_SVM)
+                with st.spinner("Training SVM..."):
+                    fig1=analysis.train_svm(drop_cols=list(drop_cols))
+                st.pyplot(fig1)
 
         # --------------------------------------------------------------
         # 3) Run RegressionAnalysis on Different Feature Subsets
