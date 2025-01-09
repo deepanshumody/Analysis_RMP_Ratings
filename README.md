@@ -30,6 +30,7 @@ The goal of this project is to analyze trends and biases in RMP ratings. The pro
 This work combines data preprocessing, exploratory data analysis (EDA), statistical tests, and regression modeling to achieve these goals. It also evaluates the practical implications of findings through power analysis and effect size measurement.
 
 For a detailed report on the analysis and findings, refer to the [Project Report](https://docs.google.com/document/d/1M5GcozvDQxWaWHERhlZjKv4_HsLnH_WzgyD-icaFvdw/edit?usp=sharing).
+For a partial demo visit the [Streamlit App](https://rmpregression.streamlit.app/)
 
 ---
 
@@ -146,8 +147,7 @@ Analysis_RMP_Ratings/
 ├── scripts/            # Python scripts for analysis
 ├── reports/            # Capstone report detailing findings
 ├── requirements.txt    # List of required dependencies
-├── README.md           # Project documentation
-└── LICENSE             # License for the repository
+└── README.md           # Project documentation
 ```
 
 ---
