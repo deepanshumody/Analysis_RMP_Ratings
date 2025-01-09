@@ -15,7 +15,6 @@ This repository contains an analysis of Rate My Professors (RMP) ratings, conduc
 - [Data Sources](#data-sources)
 - [Project Structure](#project-structure)
 - [Contributing](#contributing)
-- [License](#license)
 
 ---
 
