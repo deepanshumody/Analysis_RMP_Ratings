@@ -47,11 +47,12 @@ For a detailed report on the analysis and findings, refer to the [Project Report
 ## Key Findings
 
 1. **Gender Differences**:
-   - Significant differences were observed between male and female professors in specific conditions (e.g., 19+ reviews without a pepper rating).
+   - Significant differences were observed between male and female professors average rating in specific conditions (e.g., 19+ ratings without a pepper, males were rated higher than females suggesting gender bias in specific subgroups).
+   - When invesitigating differences in the distribution of the ratings, there was no significant difference.
    - Power analysis suggested low reproducibility, highlighting the need for caution in interpreting results.
 
 2. **Impact of Confounding Variables**:
-   - "Pepper" and years of experience significantly influence ratings, necessitating adjustment in analyses.
+   - "Pepper" and years of experience (number of ratings as a proxy for years of experience) significantly influence ratings, necessitating adjustment in analyses.
    - Difficulty ratings and average ratings show minimal gender differences after controlling for confounds.
 
 3. **Predictive Modeling**:
