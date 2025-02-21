@@ -48,7 +48,7 @@ For a detailed report on the analysis and findings, refer to the [Project Report
 
 1. **Gender Differences**:
    - Significant differences were observed between male and female professors average rating in specific conditions (e.g., 19+ ratings without a pepper, males were rated higher than females suggesting gender bias in specific subgroups).
-   - When invesitigating differences in the distribution of the ratings, there was no significant difference.
+   - Found no significant gender difference in the distribution of the average ratings.
    - Power analysis suggested low reproducibility, highlighting the need for caution in interpreting results.
 
 2. **Impact of Confounding Variables**:
