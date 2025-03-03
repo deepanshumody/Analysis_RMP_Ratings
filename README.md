@@ -30,7 +30,6 @@ The goal of this project is to analyze trends and biases in RMP ratings. The pro
 This work combines data preprocessing, exploratory data analysis (EDA), statistical tests, and regression modeling to achieve these goals. It also evaluates the practical implications of findings through power analysis and effect size measurement.
 
 For a detailed report on the analysis and findings, refer to the [Project Report](https://docs.google.com/document/d/1M5GcozvDQxWaWHERhlZjKv4_HsLnH_WzgyD-icaFvdw/edit?usp=sharing).
-For a partial demo visit the [Streamlit App](https://rmpregression.streamlit.app/)
 
 ---
 
@@ -48,11 +47,12 @@ For a partial demo visit the [Streamlit App](https://rmpregression.streamlit.app
 ## Key Findings
 
 1. **Gender Differences**:
-   - Significant differences were observed between male and female professors in specific conditions (e.g., 19+ reviews without a pepper rating).
+   - Significant differences were observed between male and female professors average rating in specific conditions (e.g., 19+ ratings without a pepper, males were rated higher than females suggesting gender bias in specific subgroups).
+   - Found no significant gender difference in the distribution of the average ratings.
    - Power analysis suggested low reproducibility, highlighting the need for caution in interpreting results.
 
 2. **Impact of Confounding Variables**:
-   - "Pepper" and years of experience significantly influence ratings, necessitating adjustment in analyses.
+   - "Pepper" and years of experience (number of ratings as a proxy for years of experience) significantly influence ratings, necessitating adjustment in analyses.
    - Difficulty ratings and average ratings show minimal gender differences after controlling for confounds.
 
 3. **Predictive Modeling**:
@@ -147,7 +147,8 @@ Analysis_RMP_Ratings/
 ├── scripts/            # Python scripts for analysis
 ├── reports/            # Capstone report detailing findings
 ├── requirements.txt    # List of required dependencies
-└── README.md           # Project documentation
+├── README.md           # Project documentation
+└── LICENSE             # License for the repository
 ```
 
 ---
