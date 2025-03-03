@@ -13,15 +13,30 @@ def main():
     # 1) Data Upload / Selection Section
     # --------------------------------------------------------------
     st.subheader("Upload Your Datasets")
+    PRELOADED_MAIN = "../data/rmpCapstoneNum.csv"
+    PRELOADED_TAGS = "../data/rmpCapstoneTags.csv"
+    uploaded_file_capstone = None
+    uploaded_file_tagsdf = None
+    # User choice: Use preloaded CSV or upload a new one
+    option = st.radio("Choose an option:", ("Use Preloaded datasets", "Upload Your Own CSV"),index=None)
 
-    uploaded_file_capstone = st.file_uploader(
-        "Upload the main capstone CSV (e.g. rmpCapstoneNum) here", 
-        type=["csv"]
-    )
-    uploaded_file_tagsdf = st.file_uploader(
-        "Upload the tags CSV (e.g. rmpCapstoneTags) here", 
-        type=["csv"]
-    )
+    # Load the selected CSV file
+    if option == "Use Preloaded datasets":
+        df_capstone = pd.read_csv(PRELOADED_MAIN)
+        tagsdf = pd.read_csv(PRELOADED_TAGS)
+        st.write("Loaded preloaded CSV file.")
+        uploaded_file_capstone = PRELOADED_MAIN
+        uploaded_file_tagsdf = PRELOADED_TAGS
+    elif option == "Upload Your Own CSV":
+        uploaded_file_capstone = st.file_uploader(
+            "Upload the main capstone CSV (e.g. rmpCapstoneNum) here", 
+            type=["csv"]
+        )
+        uploaded_file_tagsdf = st.file_uploader(
+            "Upload the tags CSV (e.g. rmpCapstoneTags) here", 
+            type=["csv"]
+        )            
+    
 
     if uploaded_file_capstone is not None and uploaded_file_tagsdf is not None:
         # Read data into DataFrames
