@@ -13,8 +13,8 @@ def main():
     # 1) Data Upload / Selection Section
     # --------------------------------------------------------------
     st.subheader("Upload Your Datasets")
-    PRELOADED_MAIN = "../data/rmpCapstoneNum.csv"
-    PRELOADED_TAGS = "../data/rmpCapstoneTags.csv"
+    PRELOADED_MAIN = "./data/rmpCapstoneNum.csv"
+    PRELOADED_TAGS = "./data/rmpCapstoneTags.csv"
     uploaded_file_capstone = None
     uploaded_file_tagsdf = None
     # User choice: Use preloaded CSV or upload a new one
