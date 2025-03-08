@@ -191,7 +191,7 @@ def run_regression_analysis(df_capstone: pd.DataFrame, tagsdf: pd.DataFrame):
     selected_features = st.multiselect(
         "Select features for the regression model:", 
         options=all_features, 
-        default=all_features.drop,
+        default=all_features,
         help="These features will be used to predict AverageProfessorRating."
     )
 
