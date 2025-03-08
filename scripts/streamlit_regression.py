@@ -185,13 +185,13 @@ def run_regression_analysis(df_capstone: pd.DataFrame, tagsdf: pd.DataFrame):
     target_col = 'AverageProfessorRating'
     all_features = [
         col for col in analysis.df.columns 
-        if col != target_col and not col.isdigit()
+        if col != target_col and not col.isdigit() and col != "HighConfMale"
     ]
 
     selected_features = st.multiselect(
         "Select features for the regression model:", 
         options=all_features, 
-        default=all_features,
+        default=all_features.drop,
         help="These features will be used to predict AverageProfessorRating."
     )
 
