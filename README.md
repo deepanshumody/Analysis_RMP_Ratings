@@ -1,6 +1,6 @@
 # Analysis of Rate My Professors (RMP) Ratings
 
-This repository contains an analysis of Rate My Professors (RMP) ratings, conducted to explore patterns, trends, and insights about professor evaluations by students. The project employs rigorous statistical and machine learning techniques to answer various research questions and make informed conclusions about the dataset.
+This repository contains an analysis of Rate My Professors (RMP) ratings, conducted to explore patterns, trends, and insights about professor evaluations by students. The project employs rigorous statistical techniques to answer various research questions and make informed conclusions about the dataset.
 
 ---
 
@@ -29,7 +29,7 @@ The goal of this project is to analyze trends and biases in RMP ratings. The pro
 
 This work combines data preprocessing, exploratory data analysis (EDA), statistical tests, and regression modeling to achieve these goals. It also evaluates the practical implications of findings through power analysis and effect size measurement.
 
-For a detailed report on the analysis and findings, refer to the [Project Report](https://docs.google.com/document/d/1M5GcozvDQxWaWHERhlZjKv4_HsLnH_WzgyD-icaFvdw/edit?usp=sharing).
+For a detailed report on the analysis and findings, refer to the [Project Report](https://docs.google.com/document/d/1M5GcozvDQxWaWHERhlZjKv4_HsLnH_WzgyD-icaFvdw/edit?usp=sharing) and [Demo](https://rmpregression.streamlit.app/).
 
 ---
 
