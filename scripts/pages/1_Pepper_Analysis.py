@@ -78,13 +78,13 @@ def main():
     # LOAD & PREPROCESS
     #
     st.header("Data Loading & Basic Preprocessing")
-    df_capstone = pd.read_csv('./../../data/rmpCapstoneNum.csv', header=0)
+    df_capstone = pd.read_csv('./data/rmpCapstoneNum.csv', header=0)
     df_capstone.columns = [
         'AverageProfessorRating', 'Average Difficulty', 'NumberOfRatings', 'Received a pepper',
         'Proportion of students that said they would take the class again',
         'Number of ratings coming from online classes', 'HighConfMale', 'HighConfFemale'
     ]
-
+    
     # Let’s do the subset with ≥10 ratings:
     df_10plus = df_capstone[df_capstone['NumberOfRatings'] >= 10].copy()
     # Filter out rows that have both male & female = 1 or 0 (so exactly one gender)
