@@ -6,7 +6,6 @@ import seaborn as sns
 
 from analysis_utils import PepperAnalysis, RegressionAnalysis
 
-# Optional: set page config for better layout
 st.set_page_config(
     page_title="Pepper Analysis and Regression Exploration",
     layout="wide",
@@ -15,8 +14,8 @@ st.set_page_config(
 
 def load_data(
     use_preloaded: bool, 
-    preloaded_main_path: str = "./data/rmpCapstoneNum.csv", 
-    preloaded_tags_path: str = "./data/rmpCapstoneTags.csv"
+    preloaded_main_path: str = "./../data/rmpCapstoneNum.csv", 
+    preloaded_tags_path: str = "./../data/rmpCapstoneTags.csv"
 ):
     """
     Load the dataset(s) based on the user's choice: preloaded or uploaded.
