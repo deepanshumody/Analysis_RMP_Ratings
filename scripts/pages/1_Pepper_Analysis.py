@@ -78,7 +78,7 @@ def main():
     # LOAD & PREPROCESS
     #
     st.header("Data Loading & Basic Preprocessing")
-    df_capstone = pd.read_csv('./../data/rmpCapstoneNum.csv', header=0)
+    df_capstone = pd.read_csv('./../../data/rmpCapstoneNum.csv', header=0)
     df_capstone.columns = [
         'AverageProfessorRating', 'Average Difficulty', 'NumberOfRatings', 'Received a pepper',
         'Proportion of students that said they would take the class again',
