@@ -2,7 +2,7 @@ import streamlit as st
 
 # Optional page config
 st.set_page_config(
-    page_title="My RMP Multi-Page App",
+    page_title="Rate My Professor",
     page_icon="🎓",
     layout="centered",
     initial_sidebar_state="expanded"

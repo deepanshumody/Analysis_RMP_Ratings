@@ -103,11 +103,11 @@ def main():
     #
     st.subheader("Q1: Is there a difference in the distribution / median of Average Ratings by Professor Gender?")
     st.markdown("""\
-    **Hypothesis** (from the report):
+    **Hypothesis** :
     - Null: The distribution/location of M vs F average ratings is the same.
     - Alt: There is a difference in distribution/location.  
 
-    In the report, we use **Kolmogorov-Smirnov (KS)** to check distribution difference and 
+    We use **Kolmogorov-Smirnov (KS)** to check distribution difference and 
     **Mann-Whitney U (MWU)** to check median difference. We also consider 2 confounds:
     (1) *Pepper* (hotness, from Wallisch & Cachia, 2018)  
     (2) *Years of experience* (proxy: # of Ratings, from Centra & Gaubatz, 2000).
@@ -121,9 +121,8 @@ def main():
                        'AverageProfessorRating', 'Male≥10', 'Female≥10')
 
     st.markdown("""
-    *Report Excerpt:*  
     "KS test returns a p-value of ~2.8e-3, MWU returns ~7.3e-4, both < α=0.005. We reject
-    the null that M and F have the same distribution/median for average ratings." 
+    the null that M and F have the same distribution/median for average ratings. 
     """)
 
     # Next: pepper & # of ratings as potential confounds
@@ -136,9 +135,8 @@ def main():
     perform_ks_mw_test(pepper_yes, pepper_no, 'AverageProfessorRating', 'Pepper=1', 'Pepper=0')
 
     st.markdown("""
-    *Report Excerpt:*  
-    "The difference in distributions for Pepper vs. Non-pepper is 'blaringly clear'. 
-    KS p-value ~2.4e-322, MWU p=0.0 => Pepper significantly affects average ratings."
+    The difference in distributions for Pepper vs. Non-pepper is 'blaringly clear'. 
+    KS p-value ~2.4e-322, MWU p=0.0 => Pepper significantly affects average ratings.
     """)
 
     st.markdown("**3. Check # of Ratings (Years of Experience) as a Potential Confound**")
@@ -152,9 +150,8 @@ def main():
                            df3=df_19, str3='19+')
 
     st.markdown("""
-    *Report Excerpt (Kruskal-Wallis & Pairwise Tests):*  
-    "KW test p=3.2e-3 => at least one group differs. The 19+ group is different from the other two 
-    while 10-12 vs 13-18 is not significantly different."
+    KW test p=3.2e-3 => at least one group differs. The 19+ group is different from the other two 
+    while 10-12 vs 13-18 is not significantly different.
     """)
 
     # After adjusting for confounds, only "19+ NoPepper" was still significant M vs F
@@ -182,12 +179,11 @@ def main():
                  'AverageProfessorRating', "Male≥10", "Female≥10")
 
     st.markdown("""
-    *Report Excerpt:*  
-    "P-value=0.0024 < 0.005 => significant difference.  
+    P-value=0.0024 < 0.005 => significant difference.  
      However, after controlling for confounds, only one subgroup 
      (Below median difficulty, below median # ratings, pepper=Yes) 
      had a significant difference in variance, with a very low power (0.043).  
-     Conclusion: No broad difference in variance after controlling."  
+     Conclusion: No broad difference in variance after controlling.  
     """)
 
     #
@@ -213,10 +209,9 @@ def main():
     st.write(f"**Estimated Cohen's d (≥10 M vs. F)**: {es_10plus:.3f} (demo calculation)")
 
     st.markdown("""
-    *Report Excerpt:*  
-    "We see that after confound control, we get an effect size 
+    We see that after confound control, we get an effect size 
     of ~0.27 in the 19+ NoPepper group (95% CI ~ [0.13,0.40]), 
-    but low power (0.15) implies caution in concluding a stable effect." 
+    but low power (0.15) implies caution in concluding a stable effect. 
     """)
 
     #
@@ -230,12 +225,10 @@ def main():
     - Among 10+ ratings, no pepper: 'Pop quizzes!' had p=0.0017 in MWU but not in KS, 
       so partially significant.  
 
-    *Report Excerpt:*  
-    "The only result that repeatedly appeared as statistically significant across 
-    both main and confound-adjusted data was the 'Pop quizzes!' tag."  
+    The only result that repeatedly appeared as statistically significant across 
+    both main and confound-adjusted data was the 'Pop quizzes!' tag.  
     """)
 
-    st.markdown("_(The actual code for tags is omitted here but you would do the same approach, merging tags DataFrame, computing p-values, etc.)_")
 
     #
     # QUESTION 5 & 6
@@ -256,10 +249,9 @@ def main():
     """)
 
     st.markdown("""
-    *Report Excerpt:*  
-    "We found no statistically significant difference in average difficulty 
+    We found no statistically significant difference in average difficulty 
     among men and women. Controlling for Pepper also yielded no difference. 
-    The effect size was near zero, with extremely low power."  
+    The effect size was near zero, with extremely low power.  
     """)
 
     st.write("**Example short demonstration** (KS & MW for difficulty, no confounds):")
