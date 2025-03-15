@@ -1,285 +1,441 @@
+############################################################
+# streamlit_q1to6.py
+# A Comprehensive Interactive App for Q1–Q6
+# (Assessing Professor Effectiveness Project)
+############################################################
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from scipy import stats
+from scipy.stats import mannwhitneyu, ks_2samp, levene
 import warnings
 
-# =============  CUSTOM UTILITY FUNCTIONS HERE =================
-# - visualize_density_plot
-# - perform_ks_mw_test
-# - lavenes_test
-# - effect_size
-# ==================================================================
-
-def visualize_density_plot(df1, df2, column, str1, str2, df3=None, str3=None, nbins=30):
-    """Example version that uses st.pyplot instead of plt.show()."""
-    fig, ax = plt.subplots(figsize=(8,5))
-    sns.histplot(df1[column], bins=nbins, kde=True, label=str1, stat='density')
-    sns.histplot(df2[column], bins=nbins, kde=True, label=str2, stat='density')
-    if df3 is not None:
-        sns.histplot(df3[column], bins=nbins, kde=True, label=str3, stat='density')
-        ax.set_title(f'{column}: {str1} vs {str2} vs {str3}')
-    else:
-        ax.set_title(f'{column}: {str1} vs {str2}')
-    ax.legend()
-    st.pyplot(fig)
-
-def perform_ks_mw_test(df1, df2, column, label1, label2, alpha=0.005):
+# --------------------------------------------------------------------
+# 1) HELPER / UTILITY FUNCTIONS
+# --------------------------------------------------------------------
+def load_data(num_path="./data/rmpCapstoneNum.csv", tags_path="./data/rmpCapstoneTags.csv"):
     """
-    Performs KS and Mann-Whitney on column from df1 & df2, prints interpretation for alpha=0.005.
+    Loads numeric data (rmpCapstoneNum.csv) and tag data (rmpCapstoneTags.csv),
+    filters to rows with >=10 ratings and exactly one gender=1.
+
+    Returns:
+      df_10plus: A numeric-only DataFrame with columns:
+         - 'AverageProfessorRating', 'Average Difficulty', 'NumberOfRatings',
+           'Received a pepper', 'Proportion of students that said they would take the class again',
+           'Number of ratings coming from online classes', 'HighConfMale', 'HighConfFemale'
+      df_tags_10plus: The same subset but includes 20 additional tag columns as proportions.
     """
-    ks_stat, ks_p = stats.ks_2samp(df1[column], df2[column])
-    u_stat, mw_p = stats.mannwhitneyu(df1[column], df2[column])
-
-    st.markdown(f"**KS Test** for {label1} vs. {label2}, Column={column}")
-    st.write(f"  KS Statistic: {ks_stat:.4f}, P-value: {ks_p:.3g}")
-    if ks_p < alpha:
-        st.write(f"  Distributions differ (p<0.005).")
-    else:
-        st.write(f"  No significant difference (p≥0.005).")
-
-    st.markdown(f"**Mann-Whitney U Test** for {label1} vs. {label2}, Column={column}")
-    st.write(f"  U Statistic: {u_stat:.4f}, P-value: {mw_p:.3g}")
-    if mw_p < alpha:
-        st.write(f"  Locations (medians) differ (p<0.005).")
-    else:
-        st.write(f"  No significant difference (p≥0.005).")
-
-def lavenes_test(df1, df2, column, group1_name, group2_name, alpha=0.005):
-    """
-    Levene's test for difference in variance.
-    """
-    from scipy.stats import levene
-    stat, p_value = levene(df1[column], df2[column])
-    st.markdown(f"**Levene's Test** for {group1_name} vs. {group2_name}, Column={column}")
-    st.write(f"  Statistic: {stat:.4f}, P-value: {p_value:.3g}")
-    if p_value < alpha:
-        st.write(f"  Variances differ (p<0.005).")
-    else:
-        st.write(f"  No significant difference in variance (p≥0.005).")
-
-def effect_size(df1, df2, column):
-    """
-    Simple Cohen's d effect size for two groups (df1 & df2 on the same column).
-    """
-    mean_diff = df1[column].mean() - df2[column].mean()
-    pooled_std = np.sqrt((df1[column].var() + df2[column].var())/2)
-    cohen_d = mean_diff / pooled_std if pooled_std != 0 else 0
-    return cohen_d
-
-# ============= THE STREAMLIT APP =================
-def main():
-    warnings.filterwarnings("ignore")
-    st.title("Assessing Professor Effectiveness (APE) – Questions 1 to 6")
-
-    #
-    # LOAD & PREPROCESS
-    #
-    st.header("Data Loading & Basic Preprocessing")
-    df_capstone = pd.read_csv('./data/rmpCapstoneNum.csv', header=0)
-    df_capstone.columns = [
-        'AverageProfessorRating', 'Average Difficulty', 'NumberOfRatings', 'Received a pepper',
+    # 1) Numeric data (rmpCapstoneNum)
+    df_num = pd.read_csv(num_path, header=0)
+    df_num.columns = [
+        'AverageProfessorRating', 'Average Difficulty',
+        'NumberOfRatings', 'Received a pepper',
         'Proportion of students that said they would take the class again',
-        'Number of ratings coming from online classes', 'HighConfMale', 'HighConfFemale'
+        'Number of ratings coming from online classes',
+        'HighConfMale', 'HighConfFemale'
     ]
-    
-    # Let’s do the subset with ≥10 ratings:
-    df_10plus = df_capstone[df_capstone['NumberOfRatings'] >= 10].copy()
-    # Filter out rows that have both male & female = 1 or 0 (so exactly one gender)
+    # Filter for >=10 ratings
+    df_10plus = df_num[df_num['NumberOfRatings'] >= 10].copy()
+    # Keep exactly one gender=1
     df_10plus = df_10plus[~(
         ((df_10plus['HighConfMale'] == 1) & (df_10plus['HighConfFemale'] == 1)) |
         ((df_10plus['HighConfMale'] == 0) & (df_10plus['HighConfFemale'] == 0))
     )].copy()
 
-    df_10plus_male   = df_10plus[df_10plus['HighConfMale'] == 1]
-    df_10plus_female = df_10plus[df_10plus['HighConfFemale'] == 1]
+    # 2) Tag data (rmpCapstoneTags)
+    df_tags = pd.read_csv(tags_path, header=None)
+    df_tags.columns = [
+        "Tough grader", "Good feedback", "Respected", "Lots to read",
+        "Participation matters", "Dont skip class", "Lots of homework",
+        "Inspirational", "Pop quizzes!", "Accessible", "So many papers",
+        "Clear grading", "Hilarious", "Test heavy", "Graded by few things",
+        "Amazing lectures", "Caring", "Extra credit", "Group projects",
+        "Lecture heavy"
+    ]
 
-    st.write(f"**Overall shape (≥10 ratings, one-gender rows)**: {df_10plus.shape}")
+    # Merge tags side-by-side with the original df_num
+    df_tags_merged = pd.concat([df_num, df_tags], axis=1)
 
-    #
-    # QUESTION 1
-    #
-    st.subheader("Q1: Is there a difference in the distribution / median of Average Ratings by Professor Gender?")
-    st.markdown("""\
-    **Hypothesis** :
-    - Null: The distribution/location of M vs F average ratings is the same.
-    - Alt: There is a difference in distribution/location.  
+    # Filter the same way (≥10 ratings, exactly one gender=1)
+    df_tags_10plus = df_tags_merged[df_tags_merged['NumberOfRatings'] >= 10].copy()
+    df_tags_10plus = df_tags_10plus[~(
+        ((df_tags_10plus['HighConfMale'] == 1) & (df_tags_10plus['HighConfFemale'] == 1)) |
+        ((df_tags_10plus['HighConfMale'] == 0) & (df_tags_10plus['HighConfFemale'] == 0))
+    )].copy()
 
-    We use **Kolmogorov-Smirnov (KS)** to check distribution difference and 
-    **Mann-Whitney U (MWU)** to check median difference. We also consider 2 confounds:
-    (1) *Pepper* (hotness, from Wallisch & Cachia, 2018)  
-    (2) *Years of experience* (proxy: # of Ratings, from Centra & Gaubatz, 2000).
-    """)
+    # Convert tag columns to proportions
+    # Tag columns start at index 8+ (after the 8 numeric columns)
+    tag_cols = df_tags_10plus.columns[8:]
+    for col in tag_cols:
+        df_tags_10plus[col] = df_tags_10plus[col].astype(float) / df_tags_10plus['NumberOfRatings']
 
-    # Basic test M vs F
-    st.markdown("**1. Compare All M vs. F (≥10 ratings)**")
-    visualize_density_plot(df_10plus_male, df_10plus_female,
-                           'AverageProfessorRating', 'Male≥10', 'Female≥10')
-    perform_ks_mw_test(df_10plus_male, df_10plus_female,
-                       'AverageProfessorRating', 'Male≥10', 'Female≥10')
+    return df_10plus, df_tags_10plus
 
-    st.markdown("""
-    "KS test returns a p-value of ~2.8e-3, MWU returns ~7.3e-4, both < α=0.005. We reject
-    the null that M and F have the same distribution/median for average ratings. 
-    """)
+def distribution_plot(df_male, df_female, column, nbins=30):
+    """
+    Plots a side-by-side distribution (histogram + KDE) of df_male[column] vs df_female[column].
+    """
+    fig, ax = plt.subplots(figsize=(7,5))
+    sns.histplot(df_male[column].dropna(), bins=nbins, kde=True,
+                 label="Male", stat='density', color='blue', ax=ax)
+    sns.histplot(df_female[column].dropna(), bins=nbins, kde=True,
+                 label="Female", stat='density', color='red', ax=ax)
+    ax.set_title(f"Distribution of {column} by Gender (≥10 Ratings, HighConf)")
+    ax.set_xlabel(column)
+    ax.set_ylabel("Density")
+    ax.legend()
+    st.pyplot(fig)
 
-    # Next: pepper & # of ratings as potential confounds
-    st.markdown("**2. Check Pepper as a Potential Confound**")
-    pepper_yes = df_10plus[df_10plus['Received a pepper'] == 1]
-    pepper_no  = df_10plus[df_10plus['Received a pepper'] == 0]
+def ks_mw_test(df_male, df_female, column, alpha=0.005):
+    """
+    Performs Kolmogorov-Smirnov (KS) & Mann-Whitney U (MW) tests on df_male[column] vs df_female[column].
+    Returns (ks_stat, ks_p, ks_result_str), (mw_stat, mw_p, mw_result_str).
+    """
+    arr_m = df_male[column].dropna()
+    arr_f = df_female[column].dropna()
 
-    st.markdown("_Compare distribution of AverageProfessorRating for Pepper=Yes vs. Pepper=No:_")
-    visualize_density_plot(pepper_yes, pepper_no, 'AverageProfessorRating', 'Pepper=1', 'Pepper=0')
-    perform_ks_mw_test(pepper_yes, pepper_no, 'AverageProfessorRating', 'Pepper=1', 'Pepper=0')
-
-    st.markdown("""
-    The difference in distributions for Pepper vs. Non-pepper is 'blaringly clear'. 
-    KS p-value ~2.4e-322, MWU p=0.0 => Pepper significantly affects average ratings.
-    """)
-
-    st.markdown("**3. Check # of Ratings (Years of Experience) as a Potential Confound**")
-    # Let's make 3 groups: 10-12, 13-18, and 19+
-    df_10_12 = df_10plus[(df_10plus['NumberOfRatings'] >= 10) & (df_10plus['NumberOfRatings'] <= 12)]
-    df_13_18 = df_10plus[(df_10plus['NumberOfRatings'] >= 13) & (df_10plus['NumberOfRatings'] <= 18)]
-    df_19    = df_10plus[df_10plus['NumberOfRatings'] > 18]
-
-    st.markdown("_Density Plot (10-12 vs. 13-18 vs. 19+)_")
-    visualize_density_plot(df_10_12, df_13_18, 'AverageProfessorRating', '10-12', '13-18',
-                           df3=df_19, str3='19+')
-
-    st.markdown("""
-    KW test p=3.2e-3 => at least one group differs. The 19+ group is different from the other two 
-    while 10-12 vs 13-18 is not significantly different.
-    """)
-
-    # After adjusting for confounds, only "19+ NoPepper" was still significant M vs F
-    st.markdown("""\
-    After controlling for these confounds, we find that only in one subgroup 
-    (19+ ratings, No Pepper) do M vs F remain significantly different. 
-    """)
-
-    # 
-    # QUESTION 2
-    #
-    st.subheader("Q2: Is there a difference in the *variance* (spread) of Average Ratings by Gender?")
-    st.markdown("""
-    **Hypothesis**:  
-    - Null: There's NO difference in the variance of M vs. F average ratings.  
-    - Alt: M vs. F have different variances in average ratings.  
-
-    We use **Levene's Test** to compare variance. The initial test (no confounds) gave p=0.0024, 
-    indicating a difference in variance. But we next considered confounds (Number of Ratings, 
-    Average Difficulty, Pepper) as each significantly influences the variance. 
-    """)
-
-    st.markdown("**Initial Levene's test for M vs. F**:")
-    lavenes_test(df_10plus_male, df_10plus_female,
-                 'AverageProfessorRating', "Male≥10", "Female≥10")
-
-    st.markdown("""
-    P-value=0.0024 < 0.005 => significant difference.  
-     However, after controlling for confounds, only one subgroup 
-     (Below median difficulty, below median # ratings, pepper=Yes) 
-     had a significant difference in variance, with a very low power (0.043).  
-     Conclusion: No broad difference in variance after controlling.  
-    """)
-
-    #
-    # QUESTION 3
-    #
-    st.subheader("Q3: Confidence Intervals & Effect Sizes for M vs. F Differences in Average Ratings")
-    st.markdown("""
-    The project computed 95% confidence intervals for Cohen's d in various subgroups. 
-    We highlight two main effect sizes:
-    1. M vs F (≥10 ratings, no confound control) => 
-       - Mean effect size ~0.086  
-       - 95% CI: [0.043, 0.136]
-
-    2. M vs F (19+ ratings, No Pepper) => 
-       - Mean effect size ~0.27  
-       - 95% CI: [0.13, 0.404]  
-
-    The second group's effect is bigger but the power was only ~0.15 (quite low).
-    """)
-
-    # Example effect size
-    es_10plus = effect_size(df_10plus_male, df_10plus_female, 'AverageProfessorRating')
-    st.write(f"**Estimated Cohen's d (≥10 M vs. F)**: {es_10plus:.3f} (demo calculation)")
-
-    st.markdown("""
-    We see that after confound control, we get an effect size 
-    of ~0.27 in the 19+ NoPepper group (95% CI ~ [0.13,0.40]), 
-    but low power (0.15) implies caution in concluding a stable effect. 
-    """)
-
-    #
-    # QUESTION 4
-    #
-    st.subheader("Q4: Which 'tags' differ by Gender?")
-    st.markdown("""
-    - Each 'tag' is how often a certain descriptor (e.g. *Tough grader*) was used. 
-    - Normalized by dividing #tag for a professor by #ratings they received.
-    - We do Mann-Whitney (MW) and KS for each tag M vs F. 
-    - Among 10+ ratings, no pepper: 'Pop quizzes!' had p=0.0017 in MWU but not in KS, 
-      so partially significant.  
-
-    The only result that repeatedly appeared as statistically significant across 
-    both main and confound-adjusted data was the 'Pop quizzes!' tag.  
-    """)
-
-
-    #
-    # QUESTION 5 & 6
-    #
-    st.subheader("Q5 & Q6: Does Average Difficulty differ by Gender?")
-    st.markdown("""
-    **Question**: Is there a difference in *Average Difficulty* (like Q1 but for difficulty) 
-    between M vs. F?  
-    **Findings**:
-    1. The initial test with no confounds gave MW p=0.786, KS p=0.997 => *not significant*.
-    2. We suspected 'Pepper' might confound difficulty. So we split by Pepper=Yes/No. 
-       - Still no difference in M vs F within those subgroups.
-    3. The effect size was extremely small (d ~ 0.05) with wide intervals. 
-       The test had very low power (0.005–0.05).  
-
-    **Conclusion**: No evidence of a consistent difference in Average Difficulty 
-    between male vs. female professors.
-    """)
-
-    st.markdown("""
-    We found no statistically significant difference in average difficulty 
-    among men and women. Controlling for Pepper also yielded no difference. 
-    The effect size was near zero, with extremely low power.  
-    """)
-
-    st.write("**Example short demonstration** (KS & MW for difficulty, no confounds):")
-    male_diff = df_10plus_male['Average Difficulty']
-    female_diff = df_10plus_female['Average Difficulty']
-    ks_stat, ks_p = stats.ks_2samp(male_diff, female_diff)
-    u_stat, mw_p = stats.mannwhitneyu(male_diff, female_diff)
-
-    st.write(f"- KS p-value = {ks_p:.3g}")
-    st.write(f"- MWU p-value = {mw_p:.3g}")
-    if mw_p < 0.005:
-        st.write("Significant difference. (But actual analysis found no difference, presumably large p).")
+    ks_stat, ks_p = ks_2samp(arr_m, arr_f)
+    if ks_p < alpha:
+        ks_result = f"Distributions differ significantly (p < {alpha})."
     else:
-        st.write("No significant difference. (Matches the final conclusion: no difference in difficulty.)")
+        ks_result = f"No distribution difference (p ≥ {alpha})."
+
+    mw_stat, mw_p = mannwhitneyu(arr_m, arr_f)
+    if mw_p < alpha:
+        mw_result = f"Medians differ significantly (p < {alpha})."
+    else:
+        mw_result = f"No median difference (p ≥ {alpha})."
+
+    return (ks_stat, ks_p, ks_result), (mw_stat, mw_p, mw_result)
+
+def levenes_test(df_male, df_female, column, alpha=0.005):
+    """
+    Performs Levene's test for variance difference on df_male[column] vs df_female[column].
+    Returns (stat, p_val, interpretation_str).
+    """
+    arr_m = df_male[column].dropna()
+    arr_f = df_female[column].dropna()
+    stat, p_val = levene(arr_m, arr_f)
+    if p_val < alpha:
+        interpretation = f"Variances differ significantly (p < {alpha})."
+    else:
+        interpretation = f"No variance difference (p ≥ {alpha})."
+    return stat, p_val, interpretation
+
+def cohen_d(df_male, df_female, column):
+    """
+    Computes Cohen's d for df_male[column] vs df_female[column].
+    """
+    arr_m = df_male[column].dropna()
+    arr_f = df_female[column].dropna()
+    if len(arr_m) < 2 or len(arr_f) < 2:
+        return np.nan
+
+    mean_diff = arr_m.mean() - arr_f.mean()
+    pooled_var = (arr_m.var(ddof=1) + arr_f.var(ddof=1)) / 2
+    if pooled_var < 1e-12:
+        return 0.0
+    return mean_diff / np.sqrt(pooled_var)
+
+def bootstrap_cohen_d(df_male, df_female, column, n_boot=500, alpha=0.005):
+    """
+    Bootstraps the Cohen's d statistic for M vs F on the given column, returning (lower, upper, mean).
+    """
+    arr_m = df_male[column].dropna().values
+    arr_f = df_female[column].dropna().values
+    if len(arr_m) < 2 or len(arr_f) < 2:
+        return (np.nan, np.nan, np.nan)
+
+    n1, n2 = len(arr_m), len(arr_f)
+    boot_vals = []
+    for _ in range(n_boot):
+        s1 = np.random.choice(arr_m, size=n1, replace=True)
+        s2 = np.random.choice(arr_f, size=n2, replace=True)
+        md = s1.mean() - s2.mean()
+        pooled_var = (s1.var(ddof=1) + s2.var(ddof=1)) / 2
+        if pooled_var < 1e-12:
+            d_val = 0.0
+        else:
+            d_val = md / np.sqrt(pooled_var)
+        boot_vals.append(d_val)
+
+    boot_vals = np.array(boot_vals)
+    lower = np.percentile(boot_vals, 100*(alpha/2))
+    upper = np.percentile(boot_vals, 100*(1 - alpha/2))
+    mean_ = boot_vals.mean()
+    return (lower, upper, mean_)
+
+def distribution_plot_tag(df_male, df_female, tag_column, nbins=30):
+    """
+    Plots distribution for a selected tag (already normalized) for M vs F.
+    """
+    arr_m = df_male[tag_column].dropna()
+    arr_f = df_female[tag_column].dropna()
+
+    fig, ax = plt.subplots(figsize=(7,4))
+    sns.histplot(arr_m, bins=nbins, kde=True, label='Male', color='blue', ax=ax, stat='density')
+    sns.histplot(arr_f, bins=nbins, kde=True, label='Female', color='red', ax=ax, stat='density')
+    ax.set_title(f"Tag: {tag_column} (Proportion) – M vs F")
+    ax.set_xlabel("Tag Proportion")
+    ax.set_ylabel("Density")
+    ax.legend()
+    st.pyplot(fig)
 
 
-    st.markdown("### Final Remarks on Q1–Q6")
-    st.markdown("""
-    1. **Q1**: M vs F differ in average rating distributions, but after controlling 
-       for pepper & #ratings, significance remains only in 19+ NoPepper. Low power though.  
-    2. **Q2**: M vs F differ in variance initially, but not after confound controls.  
-    3. **Q3**: Cohen's d effect sizes are generally small (~0.086) except 
-       for 19+ NoPepper group (~0.27) with low power.  
-    4. **Q4**: Tag usage. "Pop quizzes!" was the only repeated 'significant' difference.  
-    5. & 6. **Avg Difficulty** does not differ by gender, even controlling for pepper.  
-    """)
+# --------------------------------------------------------------------
+# 2) STREAMLIT APP MAIN
+# --------------------------------------------------------------------
+def main():
+    warnings.filterwarnings("ignore")
+    st.title("Interactive Analysis: Gender Differences, Variance, Effect Size, Tags, & Difficulty")
 
-    st.info("For more details, see the reference PDF. Additional sections (Q7–Q11) can be handled similarly.")
+    # Load data once
+    df_10plus, df_tags_10plus = load_data(
+        num_path="./data/rmpCapstoneNum.csv",
+        tags_path="./data/rmpCapstoneTags.csv"
+    )
 
+    # Split data by gender
+    df_male   = df_10plus[df_10plus['HighConfMale'] == 1]
+    df_female = df_10plus[df_10plus['HighConfFemale'] == 1]
+
+    df_tags_male   = df_tags_10plus[df_tags_10plus['HighConfMale'] == 1]
+    df_tags_female = df_tags_10plus[df_tags_10plus['HighConfFemale'] == 1]
+
+    # Let user choose which question to explore
+    question_choice = st.sidebar.radio(
+        "Which question would you like to explore?",
+        ("Q1: Compare Average Professor Rating by Gender", "Q2: Variance Differences by Gender (Levene's Test)", "Q3: Effect Size (Cohen's d) & CI for AverageProfessorRating", "Q4: Tag Analysis (Proportions) by Gender", "Q5: Compare Average Difficulty by Gender", "Q6: Effect Size for Average Difficulty by Pepper Subgroups"),
+        index=0
+    )
+
+    # ========================= Q1 ==========================
+    if question_choice == "Q1: Compare Average Professor Rating by Gender":
+        st.header("Q1: Compare Average Professor Rating by Gender")
+        st.markdown("""
+        **Question 1** tests if M vs F differ in their **AverageProfessorRating**.  
+        - We use Kolmogorov-Smirnov (KS) for distribution differences.  
+        - We use Mann-Whitney U (MW) for median differences.  
+        You can also filter by Pepper or #Ratings≥19.
+        """)
+
+        # Subset controls
+        subset_choice = st.selectbox(
+            "Choose a Subset of Data",
+            ["All (≥10 Ratings)", "Pepper=Yes", "Pepper=No", "≥19 Ratings"]
+        )
+
+        # Filter data
+        df_m = df_male.copy()
+        df_f = df_female.copy()
+        if subset_choice == "Pepper=Yes":
+            df_m = df_m[df_m['Received a pepper'] == 1]
+            df_f = df_f[df_f['Received a pepper'] == 1]
+        elif subset_choice == "Pepper=No":
+            df_m = df_m[df_m['Received a pepper'] == 0]
+            df_f = df_f[df_f['Received a pepper'] == 0]
+        elif subset_choice == "≥19 Ratings":
+            df_m = df_m[df_m['NumberOfRatings'] >= 19]
+            df_f = df_f[df_f['NumberOfRatings'] >= 19]
+
+        st.subheader("Distribution Plot: AverageProfessorRating")
+        distribution_plot(df_m, df_f, "AverageProfessorRating")
+
+        st.subheader("KS & MW Tests")
+        (ks_stat, ks_p, ks_str), (mw_stat, mw_p, mw_str) = ks_mw_test(df_m, df_f, "AverageProfessorRating")
+        st.write(f"**KS**: stat={ks_stat:.4f}, p={ks_p:.3g} → {ks_str}")
+        st.write(f"**MW**: stat={mw_stat:.4f}, p={mw_p:.3g} → {mw_str}")
+
+    # ========================= Q2 ==========================
+    elif question_choice == "Q2: Variance Differences by Gender (Levene's Test)":
+        st.header("Q2: Variance Differences by Gender (Levene's Test)")
+        st.markdown("""
+        **Question 2** checks if the variance (spread) of M vs F differs for a chosen numeric column.  
+        - We use Levene's Test to compare the variances.  
+        - You can pick a numeric column below.
+        """)
+
+        numeric_columns = ["AverageProfessorRating", "Average Difficulty", "NumberOfRatings"]
+        col_select = st.selectbox("Select a Numeric Column", numeric_columns)
+        distribution_plot(df_male, df_female, col_select)
+
+        st.write("### Levene's Test for Variance Difference")
+        if st.button("Run Levene's Test"):
+            stat, p_val, interp = levenes_test(df_male, df_female, col_select)
+            st.write(f"Stat={stat:.4f}, p={p_val:.3g}, {interp}")
+
+    # ========================= Q3 ==========================
+    elif question_choice == "Q3: Effect Size (Cohen's d) & CI for AverageProfessorRating":
+        st.header("Q3: Effect Size (Cohen's d) & CI for AverageProfessorRating")
+        st.markdown("""
+        **Question 3** focuses on the effect size (Cohen's d) for M vs F differences in 
+        **AverageProfessorRating**.  
+        - We optionally filter by Pepper or #Ratings≥19.  
+        - Then we compute a bootstrap confidence interval for d.
+        """)
+
+        # Subset choice
+        subset_choice = st.selectbox(
+            "Subset for M vs F (Effect Size on AverageProfessorRating)",
+            ["All (≥10 Ratings)", "Pepper=Yes", "Pepper=No", "≥19 Ratings"]
+        )
+
+        df_m = df_male.copy()
+        df_f = df_female.copy()
+        if subset_choice == "Pepper=Yes":
+            df_m = df_m[df_m['Received a pepper'] == 1]
+            df_f = df_f[df_f['Received a pepper'] == 1]
+        elif subset_choice == "Pepper=No":
+            df_m = df_m[df_m['Received a pepper'] == 0]
+            df_f = df_f[df_f['Received a pepper'] == 0]
+        elif subset_choice == "≥19 Ratings":
+            df_m = df_m[df_m['NumberOfRatings'] >= 19]
+            df_f = df_f[df_f['NumberOfRatings'] >= 19]
+
+        st.subheader("Distribution Plot: AverageProfessorRating")
+        distribution_plot(df_m, df_f, "AverageProfessorRating")
+
+        # Cohen's d
+        d_val = cohen_d(df_m, df_f, "AverageProfessorRating")
+        st.write(f"**Cohen's d** for {subset_choice}: {d_val:.3f}" if not np.isnan(d_val) else "N/A")
+
+        st.write("### Bootstrap Confidence Interval")
+        if st.button("Compute Bootstrap CI"):
+            lb, ub, mean_ = bootstrap_cohen_d(df_m, df_f, "AverageProfessorRating", n_boot=500, alpha=0.005)
+            if np.isnan(lb):
+                st.write("Insufficient data for bootstrap.")
+            else:
+                st.write(f"95% CI => [{lb:.3f}, {ub:.3f}], mean={mean_:.3f}")
+
+    # ========================= Q4 ==========================
+    elif question_choice == "Q4: Tag Analysis (Proportions) by Gender":
+        st.header("Q4: Tag Analysis (Proportions) by Gender")
+        st.markdown("""
+        **Question 4** explores which tags differ by gender.  
+        - Each tag is normalized by dividing by # of Ratings.  
+        - We can do Mann-Whitney & KS for each selected tag, and optionally plot one.  
+        """)
+
+        all_tags = list(df_tags_10plus.columns[8:])
+        chosen_tags = st.multiselect(
+            "Select Tag(s) to Compare for M vs F",
+            all_tags,
+            default=["Pop quizzes!"]
+        )
+
+        if chosen_tags:
+            results = []
+            for tg in chosen_tags:
+                arr_m = df_tags_male[tg].dropna()
+                arr_f = df_tags_female[tg].dropna()
+
+                mw_stat, mw_p = mannwhitneyu(arr_m, arr_f)
+                mw_sig = "Significant" if mw_p < 0.005 else "Not Significant"
+
+                ks_stat, ks_p = ks_2samp(arr_m, arr_f)
+                ks_sig = "Significant" if ks_p < 0.005 else "Not Significant"
+
+                results.append({
+                    "Tag": tg,
+                    "MW_stat": f"{mw_stat:.4f}",
+                    "MW_p": f"{mw_p:.3g}",
+                    "MW_Result": mw_sig,
+                    "KS_stat": f"{ks_stat:.4f}",
+                    "KS_p": f"{ks_p:.3g}",
+                    "KS_Result": ks_sig
+                })
+
+            df_res = pd.DataFrame(results)
+            st.write("### Test Results (Tag Analysis)")
+            st.dataframe(df_res)
+
+            # Distribution plot for one tag
+            if len(chosen_tags) == 1:
+                single_tag = chosen_tags[0]
+            else:
+                single_tag = st.selectbox("Choose ONE tag to visualize:", chosen_tags)
+
+            distribution_plot_tag(df_tags_male, df_tags_female, single_tag)
+        else:
+            st.info("No tags selected. Please pick at least one tag above.")
+
+    # ========================= Q5 ==========================
+    elif question_choice == "Q5: Compare Average Difficulty by Gender":
+        st.header("Q5: Compare Average Difficulty by Gender")
+        st.markdown("""
+        **Question 5** checks if M vs F differ in *Average Difficulty*.  
+        - We do KS & MW tests, optionally filtering by Pepper or #Ratings≥19.  
+        """)
+
+        # Subset choice
+        subset_choice = st.selectbox(
+            "Subset for M vs F (Average Difficulty)",
+            ["All (≥10 Ratings)", "Pepper=Yes", "Pepper=No", "≥19 Ratings"]
+        )
+
+        df_m = df_male.copy()
+        df_f = df_female.copy()
+        if subset_choice == "Pepper=Yes":
+            df_m = df_m[df_m['Received a pepper'] == 1]
+            df_f = df_f[df_f['Received a pepper'] == 1]
+        elif subset_choice == "Pepper=No":
+            df_m = df_m[df_m['Received a pepper'] == 0]
+            df_f = df_f[df_f['Received a pepper'] == 0]
+        elif subset_choice == "≥19 Ratings":
+            df_m = df_m[df_m['NumberOfRatings'] >= 19]
+            df_f = df_f[df_f['NumberOfRatings'] >= 19]
+
+        st.subheader("Distribution Plot: Average Difficulty")
+        distribution_plot(df_m, df_f, "Average Difficulty")
+
+        st.subheader("KS & MW Tests")
+        (ks_stat, ks_p, ks_str), (mw_stat, mw_p, mw_str) = ks_mw_test(df_m, df_f, "Average Difficulty", alpha=0.005)
+        st.write(f"**KS**: stat={ks_stat:.4f}, p={ks_p:.3g} → {ks_str}")
+        st.write(f"**MW**: stat={mw_stat:.4f}, p={mw_p:.3g} → {mw_str}")
+
+    # ========================= Q6 ==========================
+    else:
+        st.header("Q6: Effect Size for Average Difficulty by Pepper Subgroups")
+        st.markdown("""
+        **Question 6** examines effect sizes for *Average Difficulty* specifically in 
+        Pepper=Yes vs Pepper=No subgroups.  
+        We compute Cohen's d for each subgroup, then optionally do a bootstrap CI.
+        """)
+
+        df_m_yes = df_male[df_male['Received a pepper'] == 1]
+        df_f_yes = df_female[df_female['Received a pepper'] == 1]
+        df_m_no  = df_male[df_male['Received a pepper'] == 0]
+        df_f_no  = df_female[df_female['Received a pepper'] == 0]
+
+        d_yes = cohen_d(df_m_yes, df_f_yes, "Average Difficulty")
+        d_no  = cohen_d(df_m_no,  df_f_no,  "Average Difficulty")
+
+        st.write("**Cohen's d for Average Difficulty**")
+        st.table({
+            "Pepper Subgroup": ["Yes", "No"],
+            "Cohen's d": [f"{d_yes:.3f}", f"{d_no:.3f}"]
+        })
+
+        if st.button("Bootstrap Confidence Intervals"):
+            st.subheader("Pepper=Yes")
+            lb_y, ub_y, mean_y = bootstrap_cohen_d(df_m_yes, df_f_yes, "Average Difficulty", alpha=0.005)
+            if np.isnan(lb_y):
+                st.write("Insufficient data for Pepper=Yes.")
+            else:
+                st.write(f"95% CI => [{lb_y:.3f}, {ub_y:.3f}], mean={mean_y:.3f}")
+
+            st.subheader("Pepper=No")
+            lb_n, ub_n, mean_n = bootstrap_cohen_d(df_m_no, df_f_no, "Average Difficulty", alpha=0.005)
+            if np.isnan(lb_n):
+                st.write("Insufficient data for Pepper=No.")
+            else:
+                st.write(f"95% CI => [{lb_n:.3f}, {ub_n:.3f}], mean={mean_n:.3f}")
+
+    st.write("---")
+    st.info("You can switch questions from the sidebar and re-run as desired.")
+
+# Standard script entry
 if __name__ == "__main__":
     main()

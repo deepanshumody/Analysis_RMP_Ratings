@@ -29,6 +29,7 @@ def main():
         **To get started**, open the sidebar (left) and select one of the pages:
         1. *Pepper Analysis*  
         2. *Regression Analysis*  
+        3. *Classification Analysis*
 
         ---
         **How to Use**:
