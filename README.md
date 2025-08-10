@@ -1,6 +1,8 @@
 # Analysis of Rate My Professors (RMP) Ratings
 
-This repository contains an analysis of Rate My Professors (RMP) ratings, conducted to explore patterns, trends, and insights about professor evaluations by students. The project employs rigorous statistical techniques to answer various research questions and make informed conclusions about the dataset.
+This repository contains an analysis of Rate My Professors (RMP) ratings, conducted to explore patterns, trends, and insights about professor evaluations by students as part of our capstone report for Introduction to Data Science. The project employs rigorous statistical techniques to answer various research questions and make informed conclusions about the dataset. 
+
+Group Members- Deepashu Mody, Samarth Agarwal, Evan Beck
 
 ---
 
