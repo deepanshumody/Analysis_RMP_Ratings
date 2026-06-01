@@ -20,7 +20,7 @@
 > **Abstract.** Drawing on 89,893 professor records, we find a *small but statistically significant*
 > pro-male bias in average ratings (Cohen's *d* ≈ 0.09), no gender difference in perceived difficulty,
 > and that 17 of 20 teaching tags are gendered. A from-scratch regression explains 81% of rating
-> variance (the strongest signal is "would you take this class again?"), and a calibrated logistic
+> variance (the strongest signal is "would you take this class again?"), and a class-balanced logistic
 > model predicts "pepper" status at AUC ≈ 0.81. NYU **DS-GA 1001** capstone (group *CAP 85*),
 > packaged as tested, importable code with a reproducible pipeline and a published website.
 
