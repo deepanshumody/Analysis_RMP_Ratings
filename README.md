@@ -1,14 +1,28 @@
-# Assessing Professor Effectiveness (APE)
+<h1 align="center">Assessing Professor Effectiveness</h1>
 
-**A reproducible statistical analysis of 89,893 RateMyProfessor records** — is there a pro-male
-rating bias, which teaching "tags" are gendered, and what actually drives a professor's rating?
+<p align="center">
+  A reproducible statistical analysis of <b>89,893 RateMyProfessor records</b> — gender bias in
+  ratings, gendered teaching tags, and models that predict a professor's rating and "pepper".
+</p>
 
-📊 **[Read the full analysis →](https://deepanshumody.github.io/Analysis_RMP_Ratings)** &nbsp;·&nbsp;
-🧪 42 tests · from-scratch ML validated against scikit-learn · CI
+<p align="center">
+  <a href="https://github.com/deepanshumody/Analysis_RMP_Ratings/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/deepanshumody/Analysis_RMP_Ratings/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://deepanshumody.github.io/Analysis_RMP_Ratings"><img alt="Website" src="https://img.shields.io/badge/website-live-0e6e63"></a>
+  <img alt="Python" src="https://img.shields.io/badge/python-3.12-0e6e63">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-42%20passing-0e6e63">
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-0e6e63"></a>
+</p>
 
-> NYU **DS-GA 1001** capstone (group *CAP 85*), packaged as tested, importable code with a
-> reproducible analysis pipeline and a published
-> [project website](https://deepanshumody.github.io/Analysis_RMP_Ratings).
+<p align="center">
+  <b><a href="https://deepanshumody.github.io/Analysis_RMP_Ratings">▶ Read the full analysis →</a></b>
+</p>
+
+> **Abstract.** Drawing on 89,893 professor records, we find a *small but statistically significant*
+> pro-male bias in average ratings (Cohen's *d* ≈ 0.09), no gender difference in perceived difficulty,
+> and that 17 of 20 teaching tags are gendered. A from-scratch regression explains 81% of rating
+> variance (the strongest signal is "would you take this class again?"), and a calibrated logistic
+> model predicts "pepper" status at AUC ≈ 0.81. NYU **DS-GA 1001** capstone (group *CAP 85*),
+> packaged as tested, importable code with a reproducible pipeline and a published website.
 
 ---
 
