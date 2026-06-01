@@ -1,0 +1,242 @@
+{
+  "q1": {
+    "n_male": 3987,
+    "n_female": 3118,
+    "male_mean": 3.9641835966892396,
+    "female_mean": 3.888774855676716,
+    "mwu_p_one_sided_greater": 0.0003652364707130215,
+    "mwu_p_two_sided": 0.000730472941426043,
+    "ks_p": 0.0027717214563375667,
+    "significant_pro_male": true
+  },
+  "q2": {
+    "male_var": 0.7349135518332222,
+    "female_var": 0.8070924350172233,
+    "levene_stat": 9.24049619037024,
+    "levene_p": 0.00237582758359149,
+    "significant": true
+  },
+  "q3": {
+    "cohen_d": 0.08612728608377464,
+    "cohen_d_ci": [
+      0.03903253665814777,
+      0.13310180081873965
+    ],
+    "variance_ratio": 0.9105692482640345,
+    "variance_ratio_ci": [
+      0.8487020970275647,
+      0.9803206384788218
+    ]
+  },
+  "q4": {
+    "n_significant_fdr": 17,
+    "significant_tags": [
+      "hilarious",
+      "caring",
+      "amazing_lectures",
+      "participation_matters",
+      "respected",
+      "group_projects",
+      "extra_credit",
+      "graded_by_few",
+      "good_feedback",
+      "so_many_papers",
+      "lots_to_read",
+      "test_heavy",
+      "lecture_heavy",
+      "lots_of_homework",
+      "inspirational",
+      "dont_skip",
+      "clear_grading"
+    ],
+    "most_gendered": [
+      "hilarious",
+      "caring",
+      "amazing_lectures"
+    ],
+    "least_gendered": [
+      "tough_grader",
+      "accessible",
+      "pop_quizzes"
+    ]
+  },
+  "q5": {
+    "male_mean": 2.940030097817908,
+    "female_mean": 2.9469852469531754,
+    "mwu_p": 0.7855271637343776,
+    "ks_p": 0.9969658149637703,
+    "significant": false
+  },
+  "q6": {
+    "cohen_d": -0.009056899369025465,
+    "cohen_d_ci": [
+      -0.05758922258495265,
+      0.039395766430572174
+    ]
+  },
+  "q7": {
+    "best_features": [
+      "prop_retake",
+      "avg_difficulty",
+      "received_pepper",
+      "high_conf_female"
+    ],
+    "best_rmse": 0.3563299980450193,
+    "best_r2": 0.8098744928545412,
+    "top_predictor": "prop_retake",
+    "top_predictor_beta": 0.5805580915774323,
+    "forward_path": [
+      [
+        "prop_retake",
+        0.767
+      ],
+      [
+        "avg_difficulty",
+        0.798
+      ],
+      [
+        "received_pepper",
+        0.81
+      ],
+      [
+        "high_conf_female",
+        0.81
+      ],
+      [
+        "num_ratings",
+        0.81
+      ],
+      [
+        "prop_online",
+        0.81
+      ]
+    ]
+  },
+  "q8": {
+    "best_features": [
+      "tough_grader",
+      "respected",
+      "good_feedback",
+      "amazing_lectures",
+      "caring",
+      "hilarious",
+      "clear_grading",
+      "extra_credit"
+    ],
+    "best_rmse": 0.4479118493174516,
+    "best_r2": 0.7438225996564445,
+    "top_predictor": "tough_grader",
+    "top_predictor_beta": -0.24547404616299273,
+    "forward_path": [
+      [
+        "tough_grader",
+        0.471
+      ],
+      [
+        "respected",
+        0.562
+      ],
+      [
+        "good_feedback",
+        0.627
+      ],
+      [
+        "amazing_lectures",
+        0.678
+      ],
+      [
+        "caring",
+        0.702
+      ],
+      [
+        "hilarious",
+        0.719
+      ],
+      [
+        "clear_grading",
+        0.735
+      ],
+      [
+        "extra_credit",
+        0.744
+      ]
+    ]
+  },
+  "q9": {
+    "best_features": [
+      "tough_grader",
+      "test_heavy",
+      "lots_of_homework",
+      "lots_to_read",
+      "accessible",
+      "dont_skip",
+      "clear_grading",
+      "hilarious"
+    ],
+    "best_rmse": 0.47922827667219287,
+    "best_r2": 0.6002715309404347,
+    "top_predictor": "tough_grader",
+    "top_predictor_beta": 0.40140657897480914,
+    "forward_path": [
+      [
+        "tough_grader",
+        0.492
+      ],
+      [
+        "test_heavy",
+        0.52
+      ],
+      [
+        "lots_of_homework",
+        0.539
+      ],
+      [
+        "lots_to_read",
+        0.555
+      ],
+      [
+        "accessible",
+        0.572
+      ],
+      [
+        "dont_skip",
+        0.585
+      ],
+      [
+        "clear_grading",
+        0.594
+      ],
+      [
+        "hilarious",
+        0.6
+      ]
+    ]
+  },
+  "q10": {
+    "n": 5963,
+    "pepper_rate": 0.5027670635586114,
+    "auc": 0.8051349072512648,
+    "threshold": 0.4732747359310517,
+    "f1_class0": 0.7237076648841355,
+    "f1_class1": 0.754746835443038,
+    "confusion": [
+      [
+        406,
+        187
+      ],
+      [
+        123,
+        477
+      ]
+    ]
+  },
+  "q11": {
+    "n_ny": 639,
+    "n_nj": 218,
+    "ny_mean": 3.9176838810641623,
+    "nj_mean": 4.011467889908257,
+    "mwu_p": 0.06205539017015309,
+    "ks_p": 0.020936298387905845,
+    "significant": false
+  }
+}
