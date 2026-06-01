@@ -1,6 +1,7 @@
 ---
 title: "Assessing Professor Effectiveness"
 subtitle: "What 89,893 RateMyProfessor records say about gender bias, teaching tags, and what drives a rating"
+image: social-card.png
 ---
 
 ::: {.deck}
