@@ -73,7 +73,7 @@ show(figs, "q1_rating_by_gender")
 ::: {.g-col-6}
 ```{python}
 #| label: fig-roc
-#| fig-cap: "ROC for the leak-free 'pepper' classifier (AUC ≈ 0.81). Scaling happens inside the CV pipeline; the threshold is chosen by Youden's J."
+#| fig-cap: "ROC for the 'pepper' classifier (AUC ≈ 0.81). Standardization is fit inside the pipeline; the threshold is chosen by Youden's J."
 _, figs = questions.q10()
 show(figs, "q10_roc")
 ```
@@ -83,7 +83,7 @@ show(figs, "q10_roc")
 
 ## How to read this site
 
-- **[Methods](methods.qmd)** — the data, cleaning choices, the α = 0.005 threshold, and the bugs we fixed from the original coursework code (a real data leak, a missing multiple-comparison correction, a two-sided test on a directional claim).
+- **[Methods](methods.qmd)** — the data, cleaning choices, the α = 0.005 threshold, and our statistical approach (FDR control across many tests, honest out-of-sample model evaluation, directional tests where the hypothesis calls for one).
 - **[Gender bias](gender.qmd)** — Q1–Q3, Q5–Q6: bias in the mean, the spread, and effect sizes, plus difficulty.
 - **[Tags](tags.qmd)** — Q4, Q8, Q9: which tags are gendered, and tag-driven rating/difficulty models.
 - **[Models](models.qmd)** — Q7 and Q10: predicting rating and "pepper", with from-scratch regression validated against scikit-learn.
@@ -92,8 +92,6 @@ show(figs, "q10_roc")
 ::: {.callout-note collapse="true"}
 ## About this project
 NYU **DS-GA 1001** capstone, group **CAP 85** (Deepanshu Mody, Evan Beck, Samarth Agarwal).
-This site presents a cleaned, **verified** version of the analysis: the code was refactored into a
-tested package and several statistical issues in the original were corrected (so a few numbers differ
-from the original report — see [Methods](methods.qmd)). Regression and classification (Q7–Q10) and
-this engineering write-up are Deepanshu's contributions.
+The analysis is packaged as tested, importable code (`ape`) with a reproducible pipeline.
+Regression and classification (Q7–Q10) and this engineering write-up are Deepanshu's contributions.
 :::

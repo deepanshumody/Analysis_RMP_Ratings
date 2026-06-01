@@ -6,10 +6,9 @@ rating bias, which teaching "tags" are gendered, and what actually drives a prof
 📊 **[Read the full analysis →](https://deepanshumody.github.io/Analysis_RMP_Ratings)** &nbsp;·&nbsp;
 🧪 42 tests · from-scratch ML validated against scikit-learn · CI
 
-> NYU **DS-GA 1001** capstone (group *CAP 85*). This repository is a **cleaned, verified** version of
-> the original coursework: the 2,000-line analysis script was refactored into a tested package and
-> several statistical bugs were fixed (so a few numbers differ from the original report — see
-> [Methods](https://deepanshumody.github.io/Analysis_RMP_Ratings/methods.html)).
+> NYU **DS-GA 1001** capstone (group *CAP 85*), packaged as tested, importable code with a
+> reproducible analysis pipeline and a published
+> [project website](https://deepanshumody.github.io/Analysis_RMP_Ratings).
 
 ---
 
@@ -25,7 +24,7 @@ rating bias, which teaching "tags" are gendered, and what actually drives a prof
 | Q7 | Predict rating (numeric features) | **R² = 0.81** | "would retake" dominates |
 | Q8 | Predict rating (tags) | **R² = 0.74** | *Tough grader* strongest (β = −0.25) |
 | Q9 | Predict difficulty (tags) | **R² = 0.60** | *Tough grader* strongest (β = +0.40) |
-| Q10 | Predict "pepper" | **AUC = 0.81** | leak-free pipeline, balanced classes, Youden threshold |
+| Q10 | Predict "pepper" | **AUC = 0.81** | pipeline, balanced classes, Youden threshold |
 | Q11 | NY vs NJ ratings (bonus) | **No difference** | MWU *p* = 0.06 |
 
 <p align="center">
@@ -37,19 +36,19 @@ rating bias, which teaching "tags" are gendered, and what actually drives a prof
   <img src="reports/figures/q8_coefficients.png" width="55%" alt="Tag model coefficients">
 </p>
 
-## What was fixed from the original analysis
+## Methodology highlights
 
-This isn't just a re-skin — refactoring surfaced real statistical issues, each corrected and documented:
-
-- **Data leakage (Q10):** the original scaled the full feature matrix *before* the train/test split.
-  Now scaling happens inside a scikit-learn `Pipeline` fit on training folds only → honest **AUC 0.81**
-  (vs. a leaky 0.82), with class imbalance handled and the threshold set by **Youden's J**.
-- **Multiple comparisons (Q4):** 20 tags tested at α=0.05 with no correction → now **Benjamini–Hochberg
-  FDR** at α=0.005.
-- **Directional test (Q1):** the "pro-male" claim is one-sided, but the original used a two-sided test
-  (and mined subgroups). Now a one-sided Mann–Whitney, no specification search.
-- Three inconsistent Cohen's-*d* implementations unified; a mislabelled "95%" CI corrected; and ~100
-  stray `plot_*.png` files (the old script wrote them to the repo root on every run) eliminated.
+- **Honest evaluation.** All preprocessing (standardization) is fit inside cross-validation on the
+  training folds only, via scikit-learn `Pipeline`s — so reported R²/RMSE/AUC are genuine
+  out-of-sample estimates. The pepper classifier handles class imbalance with balanced weights and
+  selects its threshold by **Youden's J**.
+- **Multiple-comparison control.** Across the 20 tag tests we control the false-discovery rate with
+  **Benjamini–Hochberg** at α = 0.005.
+- **Right test for the question.** Rank-based non-parametric tests (Mann–Whitney, KS, Levene) for
+  bounded, skewed ratings; a **one-sided** test where the hypothesis is directional; and **bootstrap
+  95% CIs** for every effect size.
+- **From-scratch ML.** OLS / ridge / lasso implemented with numpy and **validated against
+  scikit-learn** in the test suite.
 
 ## Repository structure
 
@@ -59,8 +58,8 @@ src/ape/            # the analysis package
   stats_tests.py      Mann-Whitney / KS / Levene / chi² + Benjamini-Hochberg FDR
   effects.py          Cohen's d, variance ratio, bootstrap CIs
   regression.py       from-scratch OLS / ridge / lasso (validated vs scikit-learn)
-  model_selection.py  leak-free k-fold CV + forward selection
-  classify.py         leak-free 'pepper' logistic model + Youden threshold
+  model_selection.py  k-fold CV + forward selection
+  classify.py         'pepper' logistic model + Youden threshold
   viz.py              all plots → return Figure objects (no implicit file writes)
   questions.py        q1()…q11() orchestrators
 tests/              # 42 pytest tests

@@ -27,7 +27,7 @@ call an API.
 
 ## Q7 — Predict average rating from numeric predictors
 
-Forward selection with leak-free 5-fold CV over difficulty, number of ratings, pepper, gender,
+Forward selection with 5-fold cross-validation over difficulty, number of ratings, pepper, gender,
 online-proportion, and "would retake".
 
 ```{python}
@@ -53,12 +53,12 @@ give the same ranking with shrinkage.
 
 ## Q10 — Predict whether a professor gets a "pepper"
 
-A logistic-regression **pipeline** (scaling fit inside CV — no leakage), `class_weight="balanced"`,
-and a threshold from **Youden's J**. Features: numeric + all 20 tags.
+A logistic-regression **pipeline** (standardization fit on the training folds only),
+`class_weight="balanced"`, and a threshold from **Youden's J**. Features: numeric + all 20 tags.
 
 ```{python}
 #| label: fig-q10-roc
-#| fig-cap: "ROC curve — AUC ≈ 0.81, honestly estimated with no train/test leakage."
+#| fig-cap: "ROC curve — AUC ≈ 0.81, an out-of-sample estimate."
 res10, figs10 = questions.q10()
 print(f"n = {res10['n']}   pepper rate = {res10['pepper_rate']:.2f}")
 print(f"AUC = {res10['auc']:.3f}   threshold (Youden J) = {res10['threshold']:.3f}")
@@ -74,6 +74,6 @@ show(figs_cm, "q10_confusion")
 ```
 
 **Finding.** A solid classifier (**AUC ≈ 0.81**). Average rating is the dominant signal — well-liked
-professors are much more likely to be marked "hot". The honest, leak-free AUC (0.81) is essentially
-the original's 0.82 minus the leakage, with the bonus that the decision threshold is now principled
-rather than hand-picked.
+professors are much more likely to be marked "hot". Because standardization is fit only on the
+training folds and the threshold is chosen by Youden's J, this AUC is an honest out-of-sample
+estimate.

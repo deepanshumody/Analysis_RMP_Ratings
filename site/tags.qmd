@@ -41,16 +41,16 @@ it far more), followed by *Caring* and *Amazing lectures*. The least gendered ar
 *Accessible*, and *Pop quizzes!* — the only three that don't clear the bar.
 
 ::: {.callout-tip collapse="true"}
-## Why FDR (and why this differs from the original)
-With 20 tests, uncorrected p < 0.05 would expect ~1 false positive by chance; the original used that
-threshold. **Benjamini–Hochberg** controls the expected *proportion* of false discoveries — less
-conservative than Bonferroni, appropriate when we expect many true effects. With proper per-rating
-normalization, *Pop quizzes!* (flagged in the original) falls to the **least** gendered tag.
+## Why FDR
+With 20 simultaneous tests, an uncorrected p < 0.05 would flag roughly one tag as significant by
+chance alone. **Benjamini–Hochberg** controls the expected *proportion* of false discoveries — less
+conservative than Bonferroni, and appropriate when many true effects are expected. With per-rating
+normalization, *Pop quizzes!* sits among the **least** gendered tags.
 :::
 
 ## Q8 — Predict average *rating* from tags
 
-Forward selection (leak-free 5-fold CV) over the 20 tags; coefficients are standardized for
+Forward selection (5-fold cross-validation) over the 20 tags; coefficients are standardized for
 comparability.
 
 ```{python}

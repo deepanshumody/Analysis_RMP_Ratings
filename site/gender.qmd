@@ -43,9 +43,8 @@ show(figs, "q1_rating_by_gender")
 ::: {.callout-tip collapse="true"}
 ## Why this method
 Ratings are bounded and skewed, so we use **rank-based** non-parametric tests rather than a t-test.
-The directional hypothesis warrants a **one-sided** test. We deliberately avoid carving the data into
-pepper × experience × gender subgroups and reporting the one that hits significance — that
-specification search is exactly the p-hacking the brief warns against.
+Because the hypothesis is directional (men *higher*), we use a **one-sided** test, and we estimate
+the effect on the full ≥10-rating sample rather than slicing into many subgroups.
 :::
 
 ## Q2 — Is the *spread* of ratings different by gender?

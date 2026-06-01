@@ -1,6 +1,6 @@
 ---
 title: "Methods"
-subtitle: "Data, cleaning, and the corrections we made to the original analysis"
+subtitle: "Data, cleaning choices, and statistical approach"
 ---
 
 ## The data
@@ -29,48 +29,43 @@ print(f"...and confident gender:   {len(gendered):>6}  ({int((gendered['high_con
 
 - **Reliability threshold.** A mean built on one rating can be 1 or 5 by chance, so we keep only professors with **≥ 10 ratings** (9,841 of them). This is the single most important cleaning choice; we trade sample size for trustworthy averages.
 - **Gender.** We use only rows flagged male *or* female with high confidence (7,105), dropping ambiguous/both/neither.
-- **Tags.** A student can award up to 3 tags per rating, so raw counts scale with popularity. We normalize **each tag by the professor's number of ratings** — one consistent scheme across every tag question (the original code mixed two schemes).
+- **Tags.** A student can award up to 3 tags per rating, so raw counts scale with popularity. We normalize **each tag by the professor's number of ratings** — one consistent scheme across every tag question.
 - **Significance.** Following the brief (Benjamin et al., 2018), we use **α = 0.005** everywhere.
 - **Reproducibility.** All randomness is seeded (`RANDOM_SEED = 10676128`).
 
-## What we corrected from the original coursework code
+## Statistical approach
 
-This site is a *verified* re-run. While refactoring the original 2,000-line script into a tested
-package, we found and fixed several issues — the kind a careful reviewer would catch:
+A few deliberate choices keep the results defensible:
 
-::: {.callout-important}
-## Q10 — data leakage (the important one)
-The original scaled the **entire** feature matrix *before* the train/test split
-(`MinMaxScaler().fit_transform(X)` then split), letting test-set statistics leak into training.
-We now scale **inside** a scikit-learn `Pipeline` fit on the training fold only. The honest,
-leak-free AUC is ≈ **0.81** (the leaky version reported 0.82), with class imbalance handled via
-`class_weight="balanced"` and the threshold chosen by **Youden's J** rather than an arbitrary 0.61.
+::: {.callout-note}
+## Rank-based, non-parametric tests
+Ratings are bounded and skewed, so group comparisons use **Mann–Whitney U** and
+**Kolmogorov–Smirnov** rather than a t-test, and **Levene's test** for differences in spread.
+Where a hypothesis is directional (e.g. *pro-male* rating bias), we use a **one-sided** test and
+estimate the effect on the full sample rather than searching subgroups.
 :::
 
-::: {.callout-warning}
-## Q4 — multiple comparisons
-Testing all 20 tags at α = 0.05 with no correction inflates false positives. We apply the
-**Benjamini–Hochberg FDR** at α = 0.005. The conclusion is more defensible — and several borderline
-tags drop out.
+::: {.callout-note}
+## Multiple-comparison control
+When testing all 20 tags at once, we control the **false-discovery rate** with
+**Benjamini–Hochberg** at α = 0.005 — appropriate when many effects are expected, and less
+conservative than Bonferroni.
 :::
 
-::: {.callout-warning}
-## Q1 — a directional claim deserves a directional test
-The hypothesis is *pro-male* bias (one-sided), but the original used a two-sided Mann–Whitney.
-We report the **one-sided** test for the directional claim, and avoid the original's habit of
-slicing into many subgroups until one turns up significant (a specification search the brief
-explicitly warns against).
+::: {.callout-note}
+## Honest model evaluation
+For every model, all preprocessing (standardization) is fit **inside cross-validation on the
+training folds only**, via scikit-learn `Pipeline`s — so reported R²/RMSE/AUC are genuine
+out-of-sample estimates. The pepper classifier handles class imbalance with balanced class weights
+and selects its decision threshold by **Youden's J**. Effect sizes come with **bootstrap 95%
+confidence intervals**.
 :::
-
-Smaller fixes: three slightly different Cohen's-d implementations collapsed into one; a confidence
-interval mislabelled "95%" that was actually 99.5%; and ~100 stray `plot_*.png` files that the old
-script wrote to the repo root on every run.
 
 ## How we'd push it further
 
-- **Confounders done right.** Instead of subgroup slicing, model rating with gender *and* covariates
-  (difficulty, experience, school) jointly — ideally a **mixed-effects model** with a random effect
-  per university, since ratings cluster by school.
+- **Confounders done right.** Model rating with gender *and* covariates (difficulty, experience,
+  school) jointly — ideally a **mixed-effects model** with a random effect per university, since
+  ratings cluster by school.
 - **Power.** Several gender effects are tiny (d ≈ 0.09); a power analysis would tell us which
   "non-results" are genuine nulls versus underpowered.
 - **Calibration.** For the pepper classifier, calibrated probabilities (Platt/isotonic) would make
