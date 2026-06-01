@@ -1,0 +1,15 @@
+# Normalize line endings
+* text=auto eol=lf
+
+# Binary assets
+*.png binary
+*.pdf binary
+*.csv binary
+
+# Keep GitHub's language stats focused on the Python package,
+# not the data, notebooks, or generated site
+data/**        linguist-vendored
+reports/**     linguist-vendored
+notebooks/**   linguist-documentation
+site/**        linguist-documentation
+*.ipynb        linguist-documentation
