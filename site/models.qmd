@@ -1,0 +1,79 @@
+---
+title: "Predictive models"
+subtitle: "Predicting rating from numeric features (Q7) and 'pepper' from everything (Q10)"
+---
+
+```{python}
+#| label: setup
+#| echo: false
+import matplotlib.pyplot as plt
+from IPython.display import display
+from ape import questions
+
+
+def show(figs, *keys):
+    """Display only the named figures; close the rest so nothing leaks."""
+    for k, f in figs.items():
+        if k not in keys:
+            plt.close(f)
+    for k in keys:
+        display(figs[k])
+    plt.close("all")
+```
+
+The regression here uses **from-scratch** OLS / ridge / lasso (numpy normal equations and coordinate
+descent), validated against scikit-learn in the test suite — the point is to show the math, not just
+call an API.
+
+## Q7 — Predict average rating from numeric predictors
+
+Forward selection with leak-free 5-fold CV over difficulty, number of ratings, pepper, gender,
+online-proportion, and "would retake".
+
+```{python}
+#| label: fig-q7
+#| fig-cap: "Standardized coefficients of the selected rating model."
+res, figs = questions.q7()
+print("selected features:", ", ".join(res["best_features"]))
+print(f"R² = {res['best_r2']:.3f}   RMSE = {res['best_rmse']:.3f}")
+print(f"strongest predictor: {res['top_predictor']} (β = {res['top_predictor_beta']:.3f})")
+show(figs, "q7_coefficients")
+```
+
+**Finding.** A strong model (**R² ≈ 0.81**). The **proportion who would retake the class** dominates —
+on its own it explains ~77% of rating variance, which makes sense: "would you take them again" is
+almost a restatement of "are they good". Difficulty and pepper add a little more.
+
+::: {.callout-tip collapse="true"}
+## Collinearity
+"Would retake", rating, and pepper are mutually correlated. Forward selection plus standardized
+coefficients keeps the model interpretable and avoids double-counting; ridge/lasso (in the package)
+give the same ranking with shrinkage.
+:::
+
+## Q10 — Predict whether a professor gets a "pepper"
+
+A logistic-regression **pipeline** (scaling fit inside CV — no leakage), `class_weight="balanced"`,
+and a threshold from **Youden's J**. Features: numeric + all 20 tags.
+
+```{python}
+#| label: fig-q10-roc
+#| fig-cap: "ROC curve — AUC ≈ 0.81, honestly estimated with no train/test leakage."
+res10, figs10 = questions.q10()
+print(f"n = {res10['n']}   pepper rate = {res10['pepper_rate']:.2f}")
+print(f"AUC = {res10['auc']:.3f}   threshold (Youden J) = {res10['threshold']:.3f}")
+print(f"F1: no-pepper = {res10['f1_class0']:.3f}, pepper = {res10['f1_class1']:.3f}")
+show(figs10, "q10_roc")
+```
+
+```{python}
+#| label: fig-q10-cm
+#| fig-cap: "Confusion matrix at the Youden-J threshold."
+_, figs_cm = questions.q10()
+show(figs_cm, "q10_confusion")
+```
+
+**Finding.** A solid classifier (**AUC ≈ 0.81**). Average rating is the dominant signal — well-liked
+professors are much more likely to be marked "hot". The honest, leak-free AUC (0.81) is essentially
+the original's 0.82 minus the leakage, with the bonus that the decision threshold is now principled
+rather than hand-picked.

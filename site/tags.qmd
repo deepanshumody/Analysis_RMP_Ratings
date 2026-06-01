@@ -1,0 +1,85 @@
+---
+title: "Teaching tags"
+subtitle: "Which tags are gendered, and how well tags predict rating & difficulty (Q4, Q8, Q9)"
+---
+
+```{python}
+#| label: setup
+#| echo: false
+import matplotlib.pyplot as plt
+from IPython.display import display
+from ape import questions
+
+
+def show(figs, *keys):
+    """Display only the named figures; close the rest so nothing leaks."""
+    for k, f in figs.items():
+        if k not in keys:
+            plt.close(f)
+    for k in keys:
+        display(figs[k])
+    plt.close("all")
+```
+
+## Q4 — Which tags differ by gender?
+
+We test each of the 20 tags (normalized per rating) for a male/female difference, then control the
+false-discovery rate across all 20 with **Benjamini–Hochberg** at α = 0.005.
+
+```{python}
+#| label: fig-q4
+#| fig-cap: "Per-tag gender difference as −log₁₀(FDR-adjusted p). Bars past the red line are significant; grey bars are not."
+res, figs = questions.q4()
+print(f"{res['n_significant_fdr']} of 20 tags differ significantly by gender (FDR @ 0.005)")
+print("most gendered :", ", ".join(res["most_gendered"]))
+print("least gendered:", ", ".join(res["least_gendered"]))
+show(figs, "q4_tag_significance")
+```
+
+**Finding.** **17 of 20** tags are gendered. *Hilarious* is overwhelmingly the most gendered (men get
+it far more), followed by *Caring* and *Amazing lectures*. The least gendered are *Tough grader*,
+*Accessible*, and *Pop quizzes!* — the only three that don't clear the bar.
+
+::: {.callout-tip collapse="true"}
+## Why FDR (and why this differs from the original)
+With 20 tests, uncorrected p < 0.05 would expect ~1 false positive by chance; the original used that
+threshold. **Benjamini–Hochberg** controls the expected *proportion* of false discoveries — less
+conservative than Bonferroni, appropriate when we expect many true effects. With proper per-rating
+normalization, *Pop quizzes!* (flagged in the original) falls to the **least** gendered tag.
+:::
+
+## Q8 — Predict average *rating* from tags
+
+Forward selection (leak-free 5-fold CV) over the 20 tags; coefficients are standardized for
+comparability.
+
+```{python}
+#| label: fig-q8
+#| fig-cap: "Standardized coefficients of the selected tag model for average rating."
+res8, figs8 = questions.q8()
+print("selected tags:", ", ".join(res8["best_features"]))
+print(f"R² = {res8['best_r2']:.3f}   RMSE = {res8['best_rmse']:.3f}")
+print(f"strongest predictor: {res8['top_predictor']} (β = {res8['top_predictor_beta']:.3f})")
+show(figs8, "q8_coefficients")
+```
+
+**Finding.** Tags explain a lot of rating variance (**R² ≈ 0.74**). **Tough grader** is the strongest
+predictor and it's *negative* — being seen as a tough grader pulls ratings down. This is a touch
+weaker than the numeric-feature model in [Models](models.qmd), where "would retake" alone is
+extremely predictive.
+
+## Q9 — Predict average *difficulty* from tags
+
+```{python}
+#| label: fig-q9
+#| fig-cap: "Standardized coefficients of the selected tag model for average difficulty."
+res9, figs9 = questions.q9()
+print("selected tags:", ", ".join(res9["best_features"]))
+print(f"R² = {res9['best_r2']:.3f}   RMSE = {res9['best_rmse']:.3f}")
+print(f"strongest predictor: {res9['top_predictor']} (β = {res9['top_predictor_beta']:.3f})")
+show(figs9, "q9_coefficients")
+```
+
+**Finding.** Tags predict difficulty less well than rating (**R² ≈ 0.60**). Here **Tough grader** is
+the strongest predictor and *positive* — the mirror image of Q8, which makes intuitive sense: tough
+graders are rated harder and liked less.

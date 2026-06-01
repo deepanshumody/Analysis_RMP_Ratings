@@ -1,0 +1,25 @@
+/*-- scss:defaults --*/
+$primary: #542c8b;
+
+/*-- scss:rules --*/
+h1, h2, h3 {
+  letter-spacing: -0.01em;
+}
+
+.navbar-title {
+  font-weight: 600;
+}
+
+table {
+  font-size: 0.95rem;
+}
+
+.callout.callout-style-default {
+  border-left-width: 4px;
+}
+
+.lead {
+  font-size: 1.15rem;
+  color: #6b7280;
+  margin-bottom: 1.5rem;
+}

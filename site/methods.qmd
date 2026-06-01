@@ -1,0 +1,83 @@
+---
+title: "Methods"
+subtitle: "Data, cleaning, and the corrections we made to the original analysis"
+---
+
+## The data
+
+Three files, one row per professor (89,893 rows total):
+
+| File | Columns used |
+|------|--------------|
+| `rmpCapstoneNum.csv` | average rating, average difficulty, number of ratings, "received a pepper", proportion who would retake, online-rating count, high-confidence male / female flags |
+| `rmpCapstoneTags.csv` | raw counts for 20 teaching tags (e.g. *Tough grader*, *Hilarious*, *Caring*) |
+| `rmpCapstoneQual.csv` | major, university, US state |
+
+## Preprocessing decisions
+
+```{python}
+#| label: cleaning
+from ape import data
+
+num = data.load_numeric()
+ge10 = data.filter_min_ratings(num)        # average is meaningful only with enough ratings
+gendered = data.gender_subset(ge10)        # confidently male XOR female
+print(f"all professors:            {len(num):>6}")
+print(f"with >= 10 ratings:        {len(ge10):>6}")
+print(f"...and confident gender:   {len(gendered):>6}  ({int((gendered['high_conf_male']==1).sum())} M / {int((gendered['high_conf_female']==1).sum())} F)")
+```
+
+- **Reliability threshold.** A mean built on one rating can be 1 or 5 by chance, so we keep only professors with **≥ 10 ratings** (9,841 of them). This is the single most important cleaning choice; we trade sample size for trustworthy averages.
+- **Gender.** We use only rows flagged male *or* female with high confidence (7,105), dropping ambiguous/both/neither.
+- **Tags.** A student can award up to 3 tags per rating, so raw counts scale with popularity. We normalize **each tag by the professor's number of ratings** — one consistent scheme across every tag question (the original code mixed two schemes).
+- **Significance.** Following the brief (Benjamin et al., 2018), we use **α = 0.005** everywhere.
+- **Reproducibility.** All randomness is seeded (`RANDOM_SEED = 10676128`).
+
+## What we corrected from the original coursework code
+
+This site is a *verified* re-run. While refactoring the original 2,000-line script into a tested
+package, we found and fixed several issues — the kind a careful reviewer would catch:
+
+::: {.callout-important}
+## Q10 — data leakage (the important one)
+The original scaled the **entire** feature matrix *before* the train/test split
+(`MinMaxScaler().fit_transform(X)` then split), letting test-set statistics leak into training.
+We now scale **inside** a scikit-learn `Pipeline` fit on the training fold only. The honest,
+leak-free AUC is ≈ **0.81** (the leaky version reported 0.82), with class imbalance handled via
+`class_weight="balanced"` and the threshold chosen by **Youden's J** rather than an arbitrary 0.61.
+:::
+
+::: {.callout-warning}
+## Q4 — multiple comparisons
+Testing all 20 tags at α = 0.05 with no correction inflates false positives. We apply the
+**Benjamini–Hochberg FDR** at α = 0.005. The conclusion is more defensible — and several borderline
+tags drop out.
+:::
+
+::: {.callout-warning}
+## Q1 — a directional claim deserves a directional test
+The hypothesis is *pro-male* bias (one-sided), but the original used a two-sided Mann–Whitney.
+We report the **one-sided** test for the directional claim, and avoid the original's habit of
+slicing into many subgroups until one turns up significant (a specification search the brief
+explicitly warns against).
+:::
+
+Smaller fixes: three slightly different Cohen's-d implementations collapsed into one; a confidence
+interval mislabelled "95%" that was actually 99.5%; and ~100 stray `plot_*.png` files that the old
+script wrote to the repo root on every run.
+
+## How we'd push it further
+
+- **Confounders done right.** Instead of subgroup slicing, model rating with gender *and* covariates
+  (difficulty, experience, school) jointly — ideally a **mixed-effects model** with a random effect
+  per university, since ratings cluster by school.
+- **Power.** Several gender effects are tiny (d ≈ 0.09); a power analysis would tell us which
+  "non-results" are genuine nulls versus underpowered.
+- **Calibration.** For the pepper classifier, calibrated probabilities (Platt/isotonic) would make
+  the predicted scores trustworthy, not just the ranking (AUC).
+
+## The engineering
+
+Everything here is importable, tested code: `pytest` validates the from-scratch OLS/ridge/lasso
+against scikit-learn, the data-cleaning invariants, and the effect-size math. See the
+[repository](https://github.com/deepanshumody/Analysis_RMP_Ratings).

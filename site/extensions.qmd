@@ -1,0 +1,63 @@
+---
+title: "Extensions"
+subtitle: "A geographic bonus question and where this analysis could go next"
+---
+
+```{python}
+#| label: setup
+#| echo: false
+import matplotlib.pyplot as plt
+from IPython.display import display
+from ape import questions
+
+
+def show(figs, *keys):
+    """Display only the named figures; close the rest so nothing leaks."""
+    for k, f in figs.items():
+        if k not in keys:
+            plt.close(f)
+    for k in keys:
+        display(figs[k])
+    plt.close("all")
+```
+
+## Q11 (bonus) — Do New York and New Jersey professors differ?
+
+Using the qualitative file's state column, we compare average ratings for NY vs. NJ professors
+(≥ 10 ratings).
+
+```{python}
+#| label: fig-q11
+#| fig-cap: "NY vs NJ average-rating distributions — visually and statistically indistinguishable at α = 0.005."
+res, figs = questions.q11()
+print(f"NY: mean {res['ny_mean']:.3f} (n={res['n_ny']})")
+print(f"NJ: mean {res['nj_mean']:.3f} (n={res['n_nj']})")
+print(f"Mann-Whitney U: p = {res['mwu_p']:.3f}   KS: p = {res['ks_p']:.3f}")
+show(figs, "q11_ny_vs_nj")
+```
+
+**Finding.** No significant difference at α = 0.005 (MWU p ≈ 0.06). NJ trends a hair higher, but with
+218 NJ professors the difference isn't reliable. Geography, at least for these two neighbours, doesn't
+move the needle.
+
+## Where we'd take this next
+
+- **Hierarchical models.** Ratings cluster by university and major. A **mixed-effects model** with
+  random intercepts per school would separate "this professor is good" from "this school rates
+  generously", and give a cleaner estimate of the gender effect after controlling for institution.
+- **Text & tags together.** Combine the tag signal with the qualitative fields (major, university) to
+  ask *where* gender bias concentrates — e.g. is the pro-male gap larger in some disciplines?
+- **Causal framing.** The current analysis is associational. Matching male/female professors on
+  difficulty, department, and rating count would tighten the bias estimate.
+- **Calibrated, fairness-aware classifier.** For the pepper model, calibrate probabilities and check
+  whether error rates differ by gender — a natural fairness audit given the dataset's subject matter.
+
+## Reproduce it yourself
+
+```bash
+git clone https://github.com/deepanshumody/Analysis_RMP_Ratings
+cd Analysis_RMP_Ratings
+make setup      # create venv, install the ape package
+make test       # 42 tests: from-scratch ML validated vs scikit-learn
+make analysis   # regenerate every figure + results.json
+```

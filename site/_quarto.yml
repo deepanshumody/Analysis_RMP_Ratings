@@ -1,0 +1,46 @@
+project:
+  type: website
+  output-dir: _site
+  preview:
+    port: 4848
+
+website:
+  title: "Assessing Professor Effectiveness"
+  description: "A statistical analysis of 89,893 RateMyProfessor records — gender bias, tags, and predictive models."
+  reader-mode: true
+  navbar:
+    left:
+      - href: index.qmd
+        text: Overview
+      - href: methods.qmd
+        text: Methods
+      - href: gender.qmd
+        text: Gender bias
+      - href: tags.qmd
+        text: Tags
+      - href: models.qmd
+        text: Models
+      - href: extensions.qmd
+        text: Extensions
+    right:
+      - icon: github
+        href: https://github.com/deepanshumody/Analysis_RMP_Ratings
+  page-footer:
+    center: "NYU DS-GA 1001 capstone · Group CAP 85 · analysis & code by Deepanshu Mody"
+
+format:
+  html:
+    theme: [cosmo, styles.scss]
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    code-tools: true
+    code-overflow: wrap
+    fig-align: center
+    df-print: kable
+    highlight-style: github
+
+execute:
+  echo: true
+  warning: false
+  freeze: auto
