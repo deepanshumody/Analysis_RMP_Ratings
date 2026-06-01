@@ -1,25 +1,118 @@
 /*-- scss:defaults --*/
-$primary: #542c8b;
+
+// Palette — editorial: ink on warm paper, deep-teal accent, clay secondary
+$paper:      #fbfaf7;
+$ink:        #1c1b19;
+$teal:       #0e6e63;
+$teal-dark:  #0a554c;
+$clay:       #c2683f;
+$muted:      #6b675f;
+$line:       #e7e3da;
+
+$body-bg:    $paper;
+$body-color: $ink;
+$primary:    $teal;
+$link-color: $teal;
+$link-hover-color: $teal-dark;
+
+// Type — Fraunces display serif, IBM Plex Sans body, IBM Plex Mono code
+$font-family-sans-serif: "IBM Plex Sans", -apple-system, "Helvetica Neue", Arial, sans-serif;
+$font-family-monospace:  "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+$headings-font-family:   "Fraunces", Georgia, "Times New Roman", serif;
+$headings-font-weight:   600;
+$headings-color:         $ink;
+
+$font-size-root:   18px;
+$line-height-base: 1.65;
+
+$border-radius:    6px;
+$table-border-color: $line;
+
+// Code blocks
+$code-color: $teal-dark;
+$code-bg: #f3f1ea;
 
 /*-- scss:rules --*/
-h1, h2, h3 {
-  letter-spacing: -0.01em;
+
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-.navbar-title {
-  font-weight: 600;
+h1, h2, h3, h4 {
+  letter-spacing: -0.015em;
+  font-optical-sizing: auto;
 }
 
-table {
+h1.title { font-weight: 600; font-size: 2.6rem; line-height: 1.08; }
+.subtitle, p.subtitle { color: $muted; font-family: $headings-font-family;
+  font-weight: 400; font-style: italic; font-size: 1.25rem;
+  border-left: 3px solid $teal; padding-left: 1.1rem; margin-top: 0.7rem; }
+
+// Section rhythm
+.content section > h2 {
+  margin-top: 2.6rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid $line;
+}
+
+// Deck: the longer intro paragraph on the landing page (no border — subtitle carries the accent)
+.deck {
+  font-size: 1.18rem;
+  line-height: 1.62;
+  color: #34322e;
+  margin: 1.3rem 0 1.5rem;
+}
+
+// Links
+a { text-decoration: none; border-bottom: 1px solid rgba($teal, 0.28); transition: border-color .15s ease, color .15s ease; }
+a:hover { border-bottom-color: $teal; }
+.navbar a, .toc-actions a, a.nav-link, a:has(> img), .quarto-figure a { border-bottom: none; }
+
+// Navbar — paper, refined, teal active
+.navbar {
+  background: rgba($paper, 0.92) !important;
+  backdrop-filter: saturate(140%) blur(6px);
+  border-bottom: 1px solid $line;
+}
+.navbar .navbar-title { font-family: $headings-font-family; font-weight: 600; font-size: 1.15rem; color: $ink; }
+.navbar .nav-link { color: $muted !important; font-size: 0.95rem; }
+.navbar .nav-link:hover, .navbar .nav-link.active { color: $teal !important; }
+
+// Tables — editorial, ruled
+table, .table {
   font-size: 0.95rem;
 }
+.table > thead { border-bottom: 2px solid $ink; }
+.table > thead th { font-family: $headings-font-family; font-weight: 600; color: $ink; }
+.table > tbody tr { border-bottom: 1px solid $line; }
+.table > tbody td, .table > tbody th { padding-top: .5rem; padding-bottom: .5rem; }
 
-.callout.callout-style-default {
-  border-left-width: 4px;
-}
+// Callouts — quieter, teal-keyed
+.callout { border-radius: $border-radius; border-width: 1px; }
+.callout.callout-style-default > .callout-header { background: rgba($teal, 0.06); }
+.callout-note { border-left: 4px solid $teal; }
+.callout-tip  { border-left: 4px solid $clay; }
 
-.lead {
-  font-size: 1.15rem;
-  color: #6b7280;
-  margin-bottom: 1.5rem;
+// Code
+pre, code { font-size: 0.86em; }
+div.sourceCode { border: 1px solid $line; border-radius: $border-radius; background: #f6f4ee; }
+.code-tools-button, details > summary { color: $muted; }
+
+// Figures
+figure figcaption, .figure-caption, .quarto-figure figcaption {
+  color: $muted; font-size: 0.86rem; font-style: italic; text-align: center;
 }
+.cell-output-display img { border-radius: 4px; }
+
+// Stat cards on the landing page
+.stat-row { display: flex; flex-wrap: wrap; gap: 1.4rem; margin: 1.8rem 0 2.4rem; }
+.stat { flex: 1 1 150px; }
+.stat .num { font-family: $headings-font-family; font-weight: 600; font-size: 2.1rem; color: $teal; line-height: 1; }
+.stat .lab { color: $muted; font-size: 0.85rem; margin-top: .35rem; text-transform: uppercase; letter-spacing: .04em; }
+
+// TOC
+#TOC, .toc-active a.active { color: $teal; }
+
+// Footer
+.nav-footer { border-top: 1px solid $line; color: $muted; font-size: 0.85rem; }

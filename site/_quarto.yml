@@ -6,9 +6,15 @@ project:
 
 website:
   title: "Assessing Professor Effectiveness"
-  description: "A statistical analysis of 89,893 RateMyProfessor records — gender bias, tags, and predictive models."
+  description: "A statistical analysis of 89,893 RateMyProfessor records — gender bias, teaching tags, and predictive models."
+  favicon: favicon.svg
   reader-mode: true
+  open-graph: true
+  twitter-card: true
+  site-url: "https://deepanshumody.github.io/Analysis_RMP_Ratings"
+  image: social-card.png
   navbar:
+    pinned: true
     left:
       - href: index.qmd
         text: Overview
@@ -25,20 +31,29 @@ website:
     right:
       - icon: github
         href: https://github.com/deepanshumody/Analysis_RMP_Ratings
+        aria-label: GitHub repository
   page-footer:
-    center: "NYU DS-GA 1001 capstone · Group CAP 85 · analysis & code by Deepanshu Mody"
+    border: true
+    left: "NYU DS-GA 1001 capstone · Group CAP 85"
+    right: "Analysis & engineering by Deepanshu Mody"
 
 format:
   html:
-    theme: [cosmo, styles.scss]
+    theme: styles.scss
     toc: true
     toc-depth: 3
     code-fold: true
     code-tools: true
     code-overflow: wrap
     fig-align: center
+    fig-dpi: 160
     df-print: kable
     highlight-style: github
+    include-in-header:
+      text: |
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 execute:
   echo: true
