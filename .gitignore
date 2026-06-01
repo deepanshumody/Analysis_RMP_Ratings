@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# OS / editor
+.DS_Store
+.ipynb_checkpoints/
+
+# Plot spam (root-level timestamped plots from the old main.py)
+/plot_*.png
+
+# Quarto / site build output
+/site/_site/
+/site/.quarto/
+/site/_freeze/
+_site/
+
+# Build artifacts
+build/
+dist/
