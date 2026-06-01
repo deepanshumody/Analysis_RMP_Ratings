@@ -93,7 +93,8 @@ show(figs, "q10_roc")
 
 ## How to read this site
 
-- **[Methods](methods.qmd)** — the data, cleaning choices, the α = 0.005 threshold, and our statistical approach (FDR control across many tests, honest out-of-sample model evaluation, directional tests where the hypothesis calls for one).
+- **[Data](data.qmd)** — where the dataset comes from, what each of the 89,893 records contains, the 20 teaching tags, a preview, and why we require ≥ 10 ratings.
+- **[Methods](methods.qmd)** — cleaning choices, the α = 0.005 threshold, and our statistical approach (FDR control across many tests, honest out-of-sample model evaluation, directional tests where the hypothesis calls for one).
 - **[Gender bias](gender.qmd)** — Q1–Q3, Q5–Q6: bias in the mean, the spread, and effect sizes, plus difficulty.
 - **[Tags](tags.qmd)** — Q4, Q8, Q9: which tags are gendered, and tag-driven rating/difficulty models.
 - **[Models](models.qmd)** — Q7 and Q10: predicting rating and "pepper", with from-scratch regression validated against scikit-learn.

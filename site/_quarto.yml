@@ -18,6 +18,8 @@ website:
     left:
       - href: index.qmd
         text: Overview
+      - href: data.qmd
+        text: Data
       - href: methods.qmd
         text: Methods
       - href: gender.qmd

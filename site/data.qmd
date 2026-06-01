@@ -1,0 +1,139 @@
+---
+title: "The data"
+subtitle: "Where it comes from, what each record contains, and why we clean it the way we do."
+---
+
+```{python}
+#| label: setup
+#| echo: false
+import matplotlib.pyplot as plt
+import pandas as pd
+from ape import config, data, viz  # importing viz applies the house figure style
+
+num = data.load_numeric()
+tags = data.load_tags()
+```
+
+[Dataset]{.kicker}
+
+The data come from **[RateMyProfessor.com](https://www.ratemyprofessors.com)**, where students
+rate instructors on quality and difficulty and tag their teaching style. The professor scraped,
+anonymized, and collated the site into three aligned files — **one row per professor, 89,893
+professors in total**, in the same order across all three files.
+
+```{python}
+#| label: shapes
+#| echo: false
+print(f"numeric file : {num.shape[0]:,} professors × {num.shape[1]} columns")
+print(f"tags file    : {tags.shape[0]:,} professors × {tags.shape[1]} columns")
+print(f"qual file    : 89,893 professors × 3 columns")
+```
+
+## What each professor record contains
+
+**`rmpCapstoneNum.csv`** — the quantitative facts about each professor:
+
+| Column | Meaning |
+|--------|---------|
+| `avg_rating` | Mean of all quality ratings (1–5) |
+| `avg_difficulty` | Mean of all difficulty ratings (1–5) |
+| `num_ratings` | How many ratings the averages are based on |
+| `received_pepper` | Whether students judged the professor "hot" (a 🌶️ on RMP) — boolean |
+| `prop_retake` | Proportion of students who said they'd take the class again |
+| `num_online` | How many ratings came from online classes |
+| `high_conf_male` | Flagged male with high confidence — boolean |
+| `high_conf_female` | Flagged female with high confidence — boolean |
+
+**`rmpCapstoneQual.csv`** — three qualitative fields: **major / field**, **university**, and
+**US state**.
+
+## The 20 teaching tags
+
+**`rmpCapstoneTags.csv`** holds the *raw count* of each tag a professor received (a student can award
+up to three tags per rating). Because counts grow with popularity, we normalize each tag by the
+professor's number of ratings before analysis.
+
+```{python}
+#| label: tag-list
+#| echo: false
+labels = list(config.TAG_LABELS.values())
+mid = (len(labels) + 1) // 2
+pd.DataFrame({"Tag": labels[:mid], " Tag": labels[mid:]})
+```
+
+## A look at the raw numbers
+
+A few real rows (numeric file):
+
+```{python}
+#| label: head
+#| echo: false
+num.head(6)
+```
+
+The single most important cleaning choice is a **minimum-ratings threshold**. An average built on one
+or two ratings is unstable — it piles up at the integer values 1, 2, …, 5. Requiring **≥ 10 ratings**
+trades sample size for trustworthy averages:
+
+```{python}
+#| label: fig-threshold
+#| echo: false
+#| fig-cap: "Average rating: all professors (with the tell-tale spikes at whole numbers from tiny samples) vs. those with ≥ 10 ratings (smooth and reliable)."
+all_r = num["avg_rating"].dropna()
+ge10_r = data.filter_min_ratings(num)["avg_rating"].dropna()
+fig = viz.density_plot(all_r, ge10_r, "All professors", "≥ 10 ratings",
+                       title="Why we require at least 10 ratings")
+fig
+```
+
+```{python}
+#| label: fig-counts
+#| echo: false
+#| fig-cap: "Distribution of the number of ratings per professor (clipped at 60). The dashed line marks our ≥ 10 threshold; most professors fall below it."
+fig, ax = plt.subplots(figsize=(8, 4.4))
+counts = num["num_ratings"].dropna().clip(upper=60)
+ax.hist(counts, bins=60, color=viz.COBALT, alpha=0.85, edgecolor="white", linewidth=0.4)
+ax.axvline(10, color=viz.INK, linestyle="--", linewidth=1.4, label="threshold = 10")
+ax.set(title="Number of ratings per professor", xlabel="Number of ratings (clipped at 60)",
+       ylabel="Professors")
+ax.grid(axis="y", alpha=1.0); ax.grid(axis="x", visible=False); ax.tick_params(length=0)
+ax.legend()
+fig.tight_layout()
+fig
+```
+
+## Missing data
+
+Some fields are missing — professors with no ratings, and the *would-retake* proportion (often
+absent). We handle this per question: dropping incomplete rows where a model needs the field,
+and otherwise working with what's available.
+
+```{python}
+#| label: fig-missing
+#| echo: false
+#| fig-cap: "Share of missing values by column in the numeric file."
+miss = (num.isna().mean() * 100).sort_values()
+fig, ax = plt.subplots(figsize=(8, 4.2))
+ax.barh(miss.index, miss.values, color=viz.COBALT, height=0.7)
+ax.set(title="Missing values by column", xlabel="% missing", ylabel="")
+ax.grid(axis="x", alpha=1.0); ax.grid(axis="y", visible=False); ax.tick_params(length=0)
+fig.tight_layout()
+fig
+```
+
+## From raw to analysis-ready
+
+```{python}
+#| label: funnel
+#| echo: false
+ge10 = data.filter_min_ratings(num)
+gendered = data.gender_subset(ge10)
+print(f"all professors                     : {len(num):>6,}")
+print(f"  with >= 10 ratings               : {len(ge10):>6,}")
+print(f"    and a high-confidence gender    : {len(gendered):>6,}  "
+      f"({int((gendered['high_conf_male']==1).sum())} M / "
+      f"{int((gendered['high_conf_female']==1).sum())} F)")
+```
+
+The exact cleaning, the **α = 0.005** significance threshold, the RNG seed, and our statistical choices
+are detailed on the **[Methods](methods.qmd)** page.

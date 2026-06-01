@@ -3,15 +3,8 @@ title: "Methods"
 subtitle: "Data, cleaning choices, and statistical approach"
 ---
 
-## The data
-
-Three files, one row per professor (89,893 rows total):
-
-| File | Columns used |
-|------|--------------|
-| `rmpCapstoneNum.csv` | average rating, average difficulty, number of ratings, "received a pepper", proportion who would retake, online-rating count, high-confidence male / female flags |
-| `rmpCapstoneTags.csv` | raw counts for 20 teaching tags (e.g. *Tough grader*, *Hilarious*, *Caring*) |
-| `rmpCapstoneQual.csv` | major, university, US state |
+For the dataset itself — the source, every variable, the 20 tags, and a preview — see the
+**[Data](data.qmd)** page. This page covers how we prepare it and the statistics we run.
 
 ## Preprocessing decisions
 
