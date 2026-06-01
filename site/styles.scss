@@ -38,25 +38,26 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-// Headings — tight, heavy grotesk
-h1, h2, h3, h4 { letter-spacing: -0.025em; line-height: 1.05; }
-h1.title { font-weight: 800; font-size: 3.1rem; margin-bottom: .4rem; }
-h2 { font-weight: 800; font-size: 1.7rem; text-transform: none; }
-h3 { font-weight: 700; font-size: 1.25rem; }
+// Headings — tight, heavy grotesk; fluid sizes so nothing overflows on mobile
+h1, h2, h3, h4 { letter-spacing: -0.025em; line-height: 1.06; overflow-wrap: break-word; }
+h1.title { font-weight: 800; font-size: clamp(2.1rem, 6vw, 3.1rem); margin-bottom: .4rem; }
+h2 { font-weight: 800; font-size: clamp(1.4rem, 4.4vw, 1.7rem); text-transform: none; }
+h3 { font-weight: 700; font-size: clamp(1.1rem, 3vw, 1.25rem); }
 
 .subtitle, p.subtitle {
   font-family: $font-family-sans-serif;
-  font-weight: 400; font-style: normal; font-size: 1.15rem;
+  font-weight: 400; font-style: normal; font-size: clamp(1rem, 2.6vw, 1.15rem);
   color: $grey; border-left: none; padding-left: 0; margin-top: .5rem;
   max-width: 46rem;
 }
 
-// Section rule — strong hairline above each H2
-.content section > h2 {
+// Section rule — strong hairline above each H2 (and no default underline below)
+.content section > h2, .content > section > h2 {
   margin-top: 3rem;
   padding-top: 1.1rem;
   border-top: 2px solid $ink;
 }
+h2 { border-bottom: none !important; padding-bottom: 0.2rem; }
 
 // Eyebrow / kicker label (mono, uppercase, cobalt)
 .kicker {
@@ -71,17 +72,16 @@ h3 { font-weight: 700; font-size: 1.25rem; }
 }
 
 // Deck — intro paragraph
-.deck { font-size: 1.22rem; line-height: 1.5; color: #2a2a2a; margin: 1.2rem 0 1.6rem; max-width: 44rem; }
+.deck { font-size: clamp(1.05rem, 2.6vw, 1.22rem); line-height: 1.5; color: #2a2a2a; margin: 1.2rem 0 1.6rem; max-width: 44rem; }
 
-// "What we're asking / how we answer it" brief
+// "What we're asking / how we answer it" brief — a quiet panel, not more rules
 .qbrief {
-  border-top: 3px solid $ink;
-  border-bottom: 1px solid $line;
-  padding: 0.9rem 0 1rem;
-  margin: 1rem 0 1.7rem;
-  background: $white;
+  background: $wash;
+  border-left: 3px solid $cobalt;
+  padding: 0.85rem 1.1rem 0.9rem;
+  margin: 1.1rem 0 1.8rem;
 }
-.qbrief p { margin: 0.35rem 0; color: #1a1a1a; }
+.qbrief p { margin: 0.3rem 0; color: #1a1a1a; }
 .qbrief strong {
   font-family: $font-family-monospace;
   text-transform: uppercase;
@@ -102,12 +102,18 @@ a:hover { border-bottom-color: $cobalt; }
   border-bottom: 2px solid $ink;
 }
 .navbar .navbar-title {
-  font-family: $headings-font-family; font-weight: 800; font-size: 1.05rem;
-  letter-spacing: -0.02em; color: $ink; text-transform: uppercase;
+  font-family: $headings-font-family; font-weight: 800; font-size: 0.9rem;
+  letter-spacing: -0.01em; color: $ink; text-transform: uppercase; white-space: nowrap;
 }
-.navbar .nav-link { color: $ink !important; font-size: 0.86rem; font-weight: 500;
-  text-transform: uppercase; letter-spacing: 0.03em; }
+.navbar-logo, .navbar-brand img { height: 24px; width: auto; margin-right: 0.5rem; }
+.navbar .nav-link { color: $ink !important; font-size: 0.78rem; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.02em; }
 .navbar .nav-link:hover, .navbar .nav-link.active { color: $cobalt !important; }
+
+// The full wordmark is long; below wide screens show just the logo mark
+@media (max-width: 1199px) {
+  .navbar .navbar-title { display: none; }
+}
 
 // Tables — minimal, hairline
 table, .table { font-size: 0.92rem; }

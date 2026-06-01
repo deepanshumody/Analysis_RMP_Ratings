@@ -16,7 +16,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
 app = ["streamlit>=1.38"]
-docs = ["jupyter>=1.0", "nbformat>=5.10", "nbclient>=0.10", "jupytext>=1.16", "ipykernel>=6.29"]
+docs = ["jupyter>=1.0", "nbformat>=5.10", "nbclient>=0.10", "jupytext>=1.16", "ipykernel>=6.29", "tabulate>=0.9"]
 
 [build-system]
 requires = ["setuptools>=68"]
