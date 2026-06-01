@@ -1,36 +1,35 @@
 /*-- scss:defaults --*/
 
-// Palette — editorial: ink on warm paper, deep-teal accent, clay secondary
-$paper:      #fbfaf7;
-$ink:        #1c1b19;
-$teal:       #0e6e63;
-$teal-dark:  #0a554c;
-$clay:       #c2683f;
-$muted:      #6b675f;
-$line:       #e7e3da;
+// Palette — Swiss/minimal: ink on white, one cobalt accent
+$white:   #ffffff;
+$ink:     #0f0f0f;
+$cobalt:  #1b3bdb;
+$cobalt-dark: #142fb0;
+$grey:    #6b6b6b;
+$line:    #e6e6e6;
+$wash:    #f5f6fa;
 
-$body-bg:    $paper;
+$body-bg:    $white;
 $body-color: $ink;
-$primary:    $teal;
-$link-color: $teal;
-$link-hover-color: $teal-dark;
+$primary:    $cobalt;
+$link-color: $cobalt;
+$link-hover-color: $cobalt-dark;
 
-// Type — Fraunces display serif, IBM Plex Sans body, IBM Plex Mono code
-$font-family-sans-serif: "IBM Plex Sans", -apple-system, "Helvetica Neue", Arial, sans-serif;
+// Type — Archivo (grotesk display + body), IBM Plex Mono (labels/code)
+$font-family-sans-serif: "Hanken Grotesk", "Archivo", -apple-system, "Helvetica Neue", Arial, sans-serif;
 $font-family-monospace:  "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-$headings-font-family:   "Fraunces", Georgia, "Times New Roman", serif;
-$headings-font-weight:   600;
+$headings-font-family:   "Archivo", "Helvetica Neue", Arial, sans-serif;
+$headings-font-weight:   800;
 $headings-color:         $ink;
 
 $font-size-root:   18px;
-$line-height-base: 1.65;
+$line-height-base: 1.6;
 
-$border-radius:    6px;
+$border-radius:    0;          // sharp corners — Swiss
 $table-border-color: $line;
 
-// Code blocks
-$code-color: $teal-dark;
-$code-bg: #f3f1ea;
+$code-color: $cobalt-dark;
+$code-bg: $wash;
 
 /*-- scss:rules --*/
 
@@ -39,80 +38,116 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-h1, h2, h3, h4 {
-  letter-spacing: -0.015em;
-  font-optical-sizing: auto;
+// Headings — tight, heavy grotesk
+h1, h2, h3, h4 { letter-spacing: -0.025em; line-height: 1.05; }
+h1.title { font-weight: 800; font-size: 3.1rem; margin-bottom: .4rem; }
+h2 { font-weight: 800; font-size: 1.7rem; text-transform: none; }
+h3 { font-weight: 700; font-size: 1.25rem; }
+
+.subtitle, p.subtitle {
+  font-family: $font-family-sans-serif;
+  font-weight: 400; font-style: normal; font-size: 1.15rem;
+  color: $grey; border-left: none; padding-left: 0; margin-top: .5rem;
+  max-width: 46rem;
 }
 
-h1.title { font-weight: 600; font-size: 2.6rem; line-height: 1.08; }
-.subtitle, p.subtitle { color: $muted; font-family: $headings-font-family;
-  font-weight: 400; font-style: italic; font-size: 1.25rem;
-  border-left: 3px solid $teal; padding-left: 1.1rem; margin-top: 0.7rem; }
-
-// Section rhythm
+// Section rule — strong hairline above each H2
 .content section > h2 {
-  margin-top: 2.6rem;
-  padding-top: 1.4rem;
-  border-top: 1px solid $line;
+  margin-top: 3rem;
+  padding-top: 1.1rem;
+  border-top: 2px solid $ink;
 }
 
-// Deck: the longer intro paragraph on the landing page (no border — subtitle carries the accent)
-.deck {
-  font-size: 1.18rem;
-  line-height: 1.62;
-  color: #34322e;
-  margin: 1.3rem 0 1.5rem;
+// Eyebrow / kicker label (mono, uppercase, cobalt)
+.kicker {
+  display: block;
+  font-family: $font-family-monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: $cobalt;
+  margin-bottom: 0.5rem;
 }
 
-// Links
-a { text-decoration: none; border-bottom: 1px solid rgba($teal, 0.28); transition: border-color .15s ease, color .15s ease; }
-a:hover { border-bottom-color: $teal; }
-.navbar a, .toc-actions a, a.nav-link, a:has(> img), .quarto-figure a { border-bottom: none; }
+// Deck — intro paragraph
+.deck { font-size: 1.22rem; line-height: 1.5; color: #2a2a2a; margin: 1.2rem 0 1.6rem; max-width: 44rem; }
 
-// Navbar — paper, refined, teal active
-.navbar {
-  background: rgba($paper, 0.92) !important;
-  backdrop-filter: saturate(140%) blur(6px);
+// "What we're asking / how we answer it" brief
+.qbrief {
+  border-top: 3px solid $ink;
   border-bottom: 1px solid $line;
+  padding: 0.9rem 0 1rem;
+  margin: 1rem 0 1.7rem;
+  background: $white;
 }
-.navbar .navbar-title { font-family: $headings-font-family; font-weight: 600; font-size: 1.15rem; color: $ink; }
-.navbar .nav-link { color: $muted !important; font-size: 0.95rem; }
-.navbar .nav-link:hover, .navbar .nav-link.active { color: $teal !important; }
+.qbrief p { margin: 0.35rem 0; color: #1a1a1a; }
+.qbrief strong {
+  font-family: $font-family-monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: $cobalt;
+}
 
-// Tables — editorial, ruled
-table, .table {
-  font-size: 0.95rem;
+// Links — cobalt, underline on hover
+a { color: $cobalt; text-decoration: none; border-bottom: 1px solid rgba($cobalt, 0.25); transition: border-color .12s ease; }
+a:hover { border-bottom-color: $cobalt; }
+.navbar a, .toc-actions a, a.nav-link, a:has(> img), .quarto-figure a, .nav-footer a { border-bottom: none; }
+
+// Navbar — white, hairline, cobalt active
+.navbar {
+  background: $white !important;
+  border-bottom: 2px solid $ink;
 }
+.navbar .navbar-title {
+  font-family: $headings-font-family; font-weight: 800; font-size: 1.05rem;
+  letter-spacing: -0.02em; color: $ink; text-transform: uppercase;
+}
+.navbar .nav-link { color: $ink !important; font-size: 0.86rem; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.03em; }
+.navbar .nav-link:hover, .navbar .nav-link.active { color: $cobalt !important; }
+
+// Tables — minimal, hairline
+table, .table { font-size: 0.92rem; }
 .table > thead { border-bottom: 2px solid $ink; }
-.table > thead th { font-family: $headings-font-family; font-weight: 600; color: $ink; }
+.table > thead th { font-family: $font-family-monospace; font-weight: 600; font-size: 0.78rem;
+  text-transform: uppercase; letter-spacing: 0.03em; color: $ink; }
 .table > tbody tr { border-bottom: 1px solid $line; }
-.table > tbody td, .table > tbody th { padding-top: .5rem; padding-bottom: .5rem; }
+.table > tbody td, .table > tbody th { padding: 0.5rem 0.6rem; }
 
-// Callouts — quieter, teal-keyed
-.callout { border-radius: $border-radius; border-width: 1px; }
-.callout.callout-style-default > .callout-header { background: rgba($teal, 0.06); }
-.callout-note { border-left: 4px solid $teal; }
-.callout-tip  { border-left: 4px solid $clay; }
+// Callouts — quiet, cobalt-keyed, square
+.callout { border-radius: 0; border-width: 1px; border-color: $line; }
+.callout.callout-style-default > .callout-header { background: $wash; }
+.callout-note { border-left: 3px solid $cobalt; }
+.callout-tip  { border-left: 3px solid $ink; }
 
 // Code
-pre, code { font-size: 0.86em; }
-div.sourceCode { border: 1px solid $line; border-radius: $border-radius; background: #f6f4ee; }
-.code-tools-button, details > summary { color: $muted; }
+pre, code { font-size: 0.84em; }
+div.sourceCode { border: 1px solid $line; border-radius: 0; background: $wash; }
+.code-tools-button, details > summary { color: $grey; font-family: $font-family-monospace;
+  font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
 
 // Figures
 figure figcaption, .figure-caption, .quarto-figure figcaption {
-  color: $muted; font-size: 0.86rem; font-style: italic; text-align: center;
+  color: $grey; font-size: 0.84rem; text-align: left; font-family: $font-family-monospace;
 }
-.cell-output-display img { border-radius: 4px; }
 
-// Stat cards on the landing page
-.stat-row { display: flex; flex-wrap: wrap; gap: 1.4rem; margin: 1.8rem 0 2.4rem; }
-.stat { flex: 1 1 150px; }
-.stat .num { font-family: $headings-font-family; font-weight: 600; font-size: 2.1rem; color: $teal; line-height: 1; }
-.stat .lab { color: $muted; font-size: 0.85rem; margin-top: .35rem; text-transform: uppercase; letter-spacing: .04em; }
+// Stat row — big numbers, mono labels
+.stat-row { display: flex; flex-wrap: wrap; gap: 0; margin: 2rem 0 2.6rem; border-top: 2px solid $ink; border-bottom: 2px solid $ink; }
+.stat { flex: 1 1 150px; padding: 1.1rem 1.2rem 1.1rem 0; }
+.stat + .stat { border-left: 1px solid $line; padding-left: 1.2rem; }
+.stat .num { font-family: $headings-font-family; font-weight: 800; font-size: 2.4rem; color: $cobalt; line-height: 1; letter-spacing: -0.02em; }
+.stat .lab { font-family: $font-family-monospace; color: $grey; font-size: 0.72rem; margin-top: .5rem;
+  text-transform: uppercase; letter-spacing: 0.06em; }
 
 // TOC
-#TOC, .toc-active a.active { color: $teal; }
+#TOC, .toc-active a.active { color: $cobalt; }
+#toc-title { font-family: $font-family-monospace; text-transform: uppercase; font-size: 0.78rem; letter-spacing: 0.06em; }
 
 // Footer
-.nav-footer { border-top: 1px solid $line; color: $muted; font-size: 0.85rem; }
+.nav-footer { border-top: 2px solid $ink; color: $grey; font-size: 0.8rem; font-family: $font-family-monospace; }
+
+// Finding sentence emphasis
+.content p > strong:first-child { color: $ink; }
