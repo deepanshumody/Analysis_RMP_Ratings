@@ -1,6 +1,6 @@
 ---
 title: "Gender bias"
-subtitle: "Bias in the mean rating, its spread, effect sizes, and difficulty (Q1–Q3, Q5–Q6)"
+subtitle: "Is there a pro-male bias in ratings — in the average, in the spread, and in perceived difficulty?"
 ---
 
 ```{python}
@@ -21,14 +21,19 @@ def show(figs, *keys):
     plt.close("all")
 ```
 
-## Q1 — Is there a pro-male bias in average rating?
+[Questions 1–3, 5–6]{.kicker}
 
-We compare male vs. female professors (≥ 10 ratings) with a **one-sided** Mann–Whitney U test
-(the claim is directional: men *higher*) and a Kolmogorov–Smirnov test on the distributions.
+## Q1 · A pro-male bias in average rating?
+
+::: {.qbrief}
+**The question** — Do students give male professors higher average ratings than female professors?
+
+**How we answer it** — Compare the two rating distributions (professors with ≥ 10 ratings) with a *one-sided* Mann–Whitney U test (the claim is directional: men higher) and a Kolmogorov–Smirnov test.
+:::
 
 ```{python}
 #| label: fig-q1
-#| fig-cap: "Rating distributions overlap heavily, but men's mean sits slightly higher."
+#| fig-cap: "Rating distributions overlap heavily; men's mean sits slightly higher."
 res, figs = questions.q1()
 print(f"male mean   = {res['male_mean']:.3f}   (n={res['n_male']})")
 print(f"female mean = {res['female_mean']:.3f}   (n={res['n_female']})")
@@ -38,16 +43,22 @@ show(figs, "q1_rating_by_gender")
 ```
 
 **Finding.** Men average ≈ 3.96 vs. women ≈ 3.89 — a **statistically significant** pro-male gap
-(p ≈ 4 × 10⁻⁴ < 0.005). But "significant" ≠ "large": see the effect size in Q3.
+(p ≈ 4 × 10⁻⁴ < 0.005). "Significant" is not the same as "large", though — see Q3.
 
-::: {.callout-tip collapse="true"}
-## Why this method
-Ratings are bounded and skewed, so we use **rank-based** non-parametric tests rather than a t-test.
-Because the hypothesis is directional (men *higher*), we use a **one-sided** test, and we estimate
-the effect on the full ≥10-rating sample rather than slicing into many subgroups.
+::: {.callout-note collapse="true"}
+## Why this test
+Ratings are bounded (1–5) and skewed, so we use **rank-based** non-parametric tests rather than a
+t-test. Because the hypothesis is directional, we use a **one-sided** test, and we estimate the gap on
+the full ≥ 10-rating sample rather than slicing into many subgroups.
 :::
 
-## Q2 — Is the *spread* of ratings different by gender?
+## Q2 · A difference in the *spread* of ratings?
+
+::: {.qbrief}
+**The question** — Even if the averages are close, are women's ratings more polarised (more spread out) than men's?
+
+**How we answer it** — Compare the variance of the two distributions with Levene's test.
+:::
 
 ```{python}
 #| label: q2
@@ -55,29 +66,40 @@ res2, _ = questions.q2()
 print(f"male variance   = {res2['male_var']:.3f}")
 print(f"female variance = {res2['female_var']:.3f}")
 print(f"Levene's test: p = {res2['levene_p']:.4f}  ->  {'different' if res2['significant'] else 'not different'}")
-plt.close("all")  # q2 built a figure we don't show here
+plt.close("all")
 ```
 
 **Finding.** Women's ratings are **more dispersed** (variance 0.81 vs. 0.74); Levene's test is
-significant (p ≈ 0.002). Spread is a different question from the mean — hence a variance test, not a
-mean test.
+significant (p ≈ 0.002). Spread is a different question from the average — hence a variance test.
 
-## Q3 — How big are these effects? (95% CIs)
+## Q3 · How big are these effects?
+
+::: {.qbrief}
+**The question** — If a pro-male gap and a spread difference exist, how large are they in practical terms?
+
+**How we answer it** — Estimate **Cohen's d** (the standardized mean gap) and the **variance ratio** (spread), each with a 95% bootstrap confidence interval.
+:::
 
 ```{python}
 #| label: fig-q3
-#| fig-cap: "Bootstrap distribution of Cohen's d for the rating gap; the 95% CI sits entirely above zero but the effect is small."
+#| fig-cap: "Bootstrap distribution of Cohen's d for the rating gap; the 95% CI sits above zero but the effect is small."
 res3, figs3 = questions.q3()
 print(f"Cohen's d (rating, M vs F) = {res3['cohen_d']:.3f}  95% CI {tuple(round(x,3) for x in res3['cohen_d_ci'])}")
 print(f"Variance ratio (M/F)       = {res3['variance_ratio']:.3f}  95% CI {tuple(round(x,3) for x in res3['variance_ratio_ci'])}")
 show(figs3, "q3_effect_size")
 ```
 
-**Finding.** The mean effect is **small** — Cohen's d ≈ 0.09 (95% CI excludes 0 but barely). The
-variance ratio ≈ 0.91 (CI below 1) confirms women's wider spread. The honest takeaway: a *real but
-small* pro-male bias in the mean, and a small difference in spread.
+**Finding.** The mean effect is **small** — Cohen's d ≈ 0.09 (95% CI just above 0). The variance ratio
+≈ 0.91 (CI below 1) confirms women's wider spread. The honest takeaway: a *real but small* pro-male
+bias in the average, and a small difference in spread.
 
-## Q5 — Is there a gender difference in *difficulty*?
+## Q5 · A gender difference in *difficulty*?
+
+::: {.qbrief}
+**The question** — Do students perceive female professors as harder (or easier) to take than male professors?
+
+**How we answer it** — Compare the average-difficulty distributions by gender (Mann–Whitney U + KS).
+:::
 
 ```{python}
 #| label: fig-q5
@@ -92,14 +114,20 @@ show(figs5, "q5_difficulty_by_gender")
 **Finding.** **No** difference (p ≈ 0.79). Students rate male and female professors as equally
 difficult.
 
-## Q6 — Effect size of the difficulty difference
+## Q6 · How big is the difficulty difference?
+
+::: {.qbrief}
+**The question** — Putting a number on the (non-)difference in difficulty.
+
+**How we answer it** — Cohen's d on difficulty, with a 95% bootstrap CI.
+:::
 
 ```{python}
 #| label: q6
 res6, _ = questions.q6()
 print(f"Cohen's d (difficulty) = {res6['cohen_d']:.3f}  95% CI {tuple(round(x,3) for x in res6['cohen_d_ci'])}")
-plt.close("all")  # q6 built a figure we don't show here
+plt.close("all")
 ```
 
-**Finding.** d ≈ 0 with a CI straddling zero — consistent with Q5's null. A clean example of a
-result where the effect size *and* its interval agree there's nothing there.
+**Finding.** d ≈ 0 with a CI straddling zero — a clean null, where the effect size *and* its interval
+agree there is nothing there.

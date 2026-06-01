@@ -1,6 +1,6 @@
 ---
 title: "Predictive models"
-subtitle: "Predicting rating from numeric features (Q7) and 'pepper' from everything (Q10)"
+subtitle: "What drives a professor's rating — and can we predict who gets a 'pepper'?"
 ---
 
 ```{python}
@@ -21,14 +21,19 @@ def show(figs, *keys):
     plt.close("all")
 ```
 
+[Questions 7 & 10]{.kicker}
+
 The regression here uses **from-scratch** OLS / ridge / lasso (numpy normal equations and coordinate
 descent), validated against scikit-learn in the test suite — the point is to show the math, not just
 call an API.
 
-## Q7 — Predict average rating from numeric predictors
+## Q7 · Predicting rating from numeric features
 
-Forward selection with 5-fold cross-validation over difficulty, number of ratings, pepper, gender,
-online-proportion, and "would retake".
+::: {.qbrief}
+**The question** — Using only the numeric facts about a professor (difficulty, number of ratings, pepper, gender, online share, would-retake share), how well can we predict their rating, and what matters most?
+
+**How we answer it** — Forward-select predictors with 5-fold cross-validation, then inspect the standardized coefficients of the chosen model.
+:::
 
 ```{python}
 #| label: fig-q7
@@ -40,21 +45,24 @@ print(f"strongest predictor: {res['top_predictor']} (β = {res['top_predictor_be
 show(figs, "q7_coefficients")
 ```
 
-**Finding.** A strong model (**R² ≈ 0.81**). The **proportion who would retake the class** dominates —
-on its own it explains ~77% of rating variance, which makes sense: "would you take them again" is
-almost a restatement of "are they good". Difficulty and pepper add a little more.
+**Finding.** A strong model (**R² ≈ 0.81**). The **proportion of students who would retake the class**
+dominates — on its own it explains ~77% of rating variance, which makes sense: "would you take them
+again?" is almost a restatement of "are they good?". Difficulty and pepper add a little more.
 
-::: {.callout-tip collapse="true"}
-## Collinearity
+::: {.callout-note collapse="true"}
+## Handling collinearity
 "Would retake", rating, and pepper are mutually correlated. Forward selection plus standardized
 coefficients keeps the model interpretable and avoids double-counting; ridge/lasso (in the package)
 give the same ranking with shrinkage.
 :::
 
-## Q10 — Predict whether a professor gets a "pepper"
+## Q10 · Predicting a "pepper"
 
-A logistic-regression **pipeline** (standardization fit on the training folds only),
-`class_weight="balanced"`, and a threshold from **Youden's J**. Features: numeric + all 20 tags.
+::: {.qbrief}
+**The question** — Can we predict whether a professor is judged "hot" (a pepper) from everything we know — numeric features *and* tags?
+
+**How we answer it** — A class-balanced logistic-regression **pipeline** (standardization fit on the training folds only) over numeric + all 20 tags, evaluated by **AUROC** with a threshold chosen by **Youden's J**.
+:::
 
 ```{python}
 #| label: fig-q10-roc
@@ -74,6 +82,5 @@ show(figs_cm, "q10_confusion")
 ```
 
 **Finding.** A solid classifier (**AUC ≈ 0.81**). Average rating is the dominant signal — well-liked
-professors are much more likely to be marked "hot". Because standardization is fit only on the
-training folds and the threshold is chosen by Youden's J, this AUC is an honest out-of-sample
-estimate.
+professors are much more likely to be marked "hot". Because standardization is fit only on the training
+folds and the threshold comes from Youden's J, this AUC is an honest out-of-sample estimate.
